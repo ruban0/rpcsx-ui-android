@@ -7,6 +7,8 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.snapshots.SnapshotStateList
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
+import kotlinx.coroutines.withContext
+import kotlinx.coroutines.Dispatchers
 import java.io.File
 import java.security.InvalidParameterException
 
@@ -56,7 +58,7 @@ private fun toInfo(store: GameInfoStore) =
     GameInfo(store.path, store.name.value, store.iconPath.value)
 
 class GameRepository {
-    private val games = mutableStateListOf<Game>()
+    private var games = mutableStateListOf<Game>()
 
     companion object {
         private val instance = GameRepository()
@@ -73,14 +75,17 @@ class GameRepository {
             }
         }
 
-        fun load() {
-            try {
-                instance.games.clear()
-                instance.games += Json.decodeFromString<Array<GameInfo>>(File(RPCS3.rootDirectory + "games.json").readText())
-                    .map { info -> Game(toStore(info)) }
-            } catch (_: NotFoundException) {
-            } catch (e: Exception) {
-                e.printStackTrace()
+        suspend fun load() {
+            withContext(Dispatchers.IO) {
+                try {
+                    instance.games.clear()
+                    instance.games += Json.decodeFromString<Array<GameInfo>>(
+                        File(RPCS3.rootDirectory + "games.json").readText()
+                    ).map { info -> Game(toStore(info)) }
+                } catch (_: NotFoundException) {
+                } catch (e: Exception) {
+                    e.printStackTrace()
+                }
             }
         }
 
@@ -158,5 +163,9 @@ class GameRepository {
         }
 
         fun list() = instance.games
+
+        fun clear() {
+            instance.games = mutableStateListOf<Game>()
+        }
     }
 }
