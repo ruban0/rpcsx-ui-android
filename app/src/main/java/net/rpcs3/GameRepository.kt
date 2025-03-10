@@ -137,6 +137,7 @@ class GameRepository {
                         existsGame.info.name.value = info.name ?: existsGame.info.name.value
                         existsGame.info.iconPath.value =
                             info.iconPath ?: existsGame.info.iconPath.value
+                        existsGame.info.gameFlags.intValue = info.gameFlags
                         if (progressId >= 0) {
                             existsGame.addProgress(
                                 GameProgress(

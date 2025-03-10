@@ -597,9 +597,17 @@ static void sendGameInfo(JNIEnv *env, jlong progressId,
   objects.reserve(infos.size());
 
   for (const auto &info : infos) {
+    auto path = Emu.GetCallbacks().resolve_path(info.path);
+    if (path.ends_with('/')) {
+      path.resize(path.size() - 1);
+    }
+
     objects.push_back(env->NewObject(
-        gameClass, gameConstructor, wrap(env, info.path), wrap(env, info.name),
-        wrap(env, info.iconPath), jint(info.flags)));
+        gameClass, gameConstructor,
+        wrap(env, path),
+        wrap(env, info.name),
+        wrap(env, Emu.GetCallbacks().resolve_path(info.iconPath)),
+        jint(info.flags)));
   }
 
   auto result = env->NewObjectArray(objects.size(), gameClass, nullptr);
@@ -652,23 +660,37 @@ static void collectGamePaths(std::vector<std::string> &paths,
   std::error_code ec;
   std::vector<std::filesystem::path> workList;
   workList.reserve(32);
-  workList.push_back(rootDir);
+  if (!std::filesystem::is_directory(rootDir)) {
+    auto rootPath = std::filesystem::path(rootDir).parent_path();
+    if (rootPath.filename() == "USRDIR") {
+      rootPath = rootPath.parent_path();
+    }
+    if (rootPath.filename() == "PS3_GAME") {
+      rootPath = rootPath.parent_path();
+    }
+
+    workList.push_back(rootPath);
+  } else {
+    workList.push_back(rootDir);
+  }
 
   while (!workList.empty()) {
     auto dir = std::move(workList.back());
     workList.pop_back();
 
     for (auto entry : std::filesystem::directory_iterator(dir, ec)) {
-      if (!entry.is_directory()) {
+      if (entry.is_directory()) {
+        if (entry.path().filename() != "C00") {
+          workList.push_back(entry.path());
+        }
+
         continue;
       }
 
-      if (std::filesystem::is_regular_file(entry.path() / "PARAM.SFO")) {
-        paths.push_back(entry.path().string());
+      if (entry.is_regular_file() && entry.path().filename() == "PARAM.SFO") {
+        paths.push_back(entry.path().parent_path().string());
         continue;
       }
-
-      workList.push_back(entry.path());
     }
   }
 }
@@ -1467,10 +1489,6 @@ extern "C" JNIEXPORT jboolean JNICALL Java_net_rpcs3_RPCS3_overlayPadData(
     if (btn.m_offset == CELL_PAD_BTN_OFFSET_DIGITAL1) {
       btn.m_pressed = (digital1 & btn.m_outKeyCode) != 0;
       btn.m_value = btn.m_pressed ? 127 : 0;
-      if (btn.m_pressed && btn.m_outKeyCode == CELL_PAD_CTRL_START) {
-        rpcs3_android.warning("pad: start pressed! %p",
-                              static_cast<void *>(pad.get()));
-      }
     } else if (btn.m_offset == CELL_PAD_BTN_OFFSET_DIGITAL2) {
       btn.m_pressed = (digital2 & btn.m_outKeyCode) != 0;
       btn.m_value = btn.m_pressed ? 127 : 0;
@@ -1598,7 +1616,7 @@ extern "C" JNIEXPORT jboolean JNICALL Java_net_rpcs3_RPCS3_collectGameInfo(
 
 extern "C" JNIEXPORT void JNICALL Java_net_rpcs3_RPCS3_shutdown(JNIEnv *env,
                                                                 jobject) {
-  Emu.GracefulShutdown(true, true, false);
+  Emu.Kill();
 }
 
 extern "C" JNIEXPORT jboolean JNICALL Java_net_rpcs3_RPCS3_boot(JNIEnv *env,
