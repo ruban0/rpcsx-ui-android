@@ -1,6 +1,7 @@
 package net.rpcs3.ui.games
 
 import android.content.Intent
+import android.widget.Toast
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.combinedClickable
@@ -11,12 +12,15 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.wrapContentHeight
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Delete
+import androidx.compose.material.icons.outlined.Lock
 import androidx.compose.material3.Card
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DropdownMenu
@@ -27,11 +31,11 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.material3.pulltorefresh.PullToRefreshDefaults
+import androidx.compose.material3.pulltorefresh.rememberPullToRefreshState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
-import androidx.compose.material3.pulltorefresh.rememberPullToRefreshState
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -41,18 +45,19 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import coil3.compose.AsyncImage
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 import net.rpcs3.FirmwareRepository
 import net.rpcs3.Game
+import net.rpcs3.GameFlag
 import net.rpcs3.GameInfo
 import net.rpcs3.GameProgressType
 import net.rpcs3.GameRepository
 import net.rpcs3.ProgressRepository
-import net.rpcs3.RPCS3Activity
 import net.rpcs3.RPCS3
+import net.rpcs3.RPCS3Activity
 import net.rpcs3.dialogs.AlertDialogQueue
 import java.io.File
-import kotlinx.coroutines.launch
-import kotlinx.coroutines.delay
 
 private fun withAlpha(color: Color, alpha: Float): Color {
     return Color(
@@ -71,7 +76,9 @@ fun GameItem(game: Game) {
     val iconExists = remember { mutableStateOf(false) }
 
     Column {
-        DropdownMenu(expanded = menuExpanded.value, onDismissRequest = { menuExpanded.value = false }) {
+        DropdownMenu(
+            expanded = menuExpanded.value,
+            onDismissRequest = { menuExpanded.value = false }) {
             if (game.progressList.isEmpty()) {
                 DropdownMenuItem(
                     text = { Text("Delete") },
@@ -90,57 +97,61 @@ fun GameItem(game: Game) {
             }
         }
 
-        Card(shape = RectangleShape, modifier = Modifier.fillMaxSize().combinedClickable(
-            onClick = {
-                if (FirmwareRepository.version.value == null) {
-                    AlertDialogQueue.showDialog(
-                        title = "Firmware Missing",
-                        message = "Please install the required firmware to continue."
-                    )
-                }
-                else if (FirmwareRepository.progressChannel.value != null) {
-                    AlertDialogQueue.showDialog(
-                        title = "Firmware Missing",
-                        message = "Please wait until firmware installs successfully to continue."
-                    )
-                } else if (game.info.path != "$" && game.findProgress(
-                        arrayOf(
-                            GameProgressType.Install,
-                            GameProgressType.Remove
-                        )
-                    ) == null
-                ) {
-                    if (game.findProgress(GameProgressType.Compile) != null) {
+        Card(shape = RectangleShape, modifier = Modifier
+            .fillMaxSize()
+            .combinedClickable(
+                onClick = {
+                    if (FirmwareRepository.version.value == null) {
                         AlertDialogQueue.showDialog(
-                            title = "Game compiling isn't finished yet",
-                            message = "Please wait until game compiles to continue."
+                            title = "Firmware Missing",
+                            message = "Please install the required firmware to continue."
                         )
-                    } else {
-                        GameRepository.onBoot(game)
-                        val emulatorWindow = Intent(
-                            context,
-                            RPCS3Activity::class.java
+                    } else if (FirmwareRepository.progressChannel.value != null) {
+                        AlertDialogQueue.showDialog(
+                            title = "Firmware Missing",
+                            message = "Please wait until firmware installs successfully to continue."
                         )
-                        emulatorWindow.putExtra("path", game.info.path)
-                        context.startActivity(emulatorWindow)
+                    } else if (game.info.path != "$" && game.findProgress(
+                            arrayOf(
+                                GameProgressType.Install,
+                                GameProgressType.Remove
+                            )
+                        ) == null
+                    ) {
+                        if (game.findProgress(GameProgressType.Compile) != null) {
+                            AlertDialogQueue.showDialog(
+                                title = "Game compiling isn't finished yet",
+                                message = "Please wait until game compiles to continue."
+                            )
+                        } else {
+                            GameRepository.onBoot(game)
+                            val emulatorWindow = Intent(
+                                context,
+                                RPCS3Activity::class.java
+                            )
+                            emulatorWindow.putExtra("path", game.info.path)
+                            context.startActivity(emulatorWindow)
+                        }
+                    }
+                },
+                onLongClick = {
+                    if (game.info.name.value != "VSH") {
+                        menuExpanded.value = true
                     }
                 }
-            },
-            onLongClick = {
-                if (game.info.name.value != "VSH") {
-                    menuExpanded.value = true
-                }
-            }
-        )
+            )
         ) {
             if (game.info.iconPath.value != null && !iconExists.value) {
                 if (game.progressList.isNotEmpty()) {
                     val progressId = ProgressRepository.getItem(game.progressList.first().id)
                     if (progressId != null) {
                         val progressValue = progressId.value.value
-                        val progressMax =  progressId.value.max
+                        val progressMax = progressId.value.max
 
-                        iconExists.value = (progressMax.longValue != 0L && progressValue.longValue == progressMax.longValue) || File(game.info.iconPath.value!!).exists()
+                        iconExists.value =
+                            (progressMax.longValue != 0L && progressValue.longValue == progressMax.longValue) || File(
+                                game.info.iconPath.value!!
+                            ).exists()
                     }
                 } else {
                     iconExists.value = File(game.info.iconPath.value!!).exists()
@@ -163,7 +174,9 @@ fun GameItem(game: Game) {
                             model = game.info.iconPath.value,
                             contentScale = if (game.info.name.value == "VSH") ContentScale.Fit else ContentScale.Crop,
                             contentDescription = null,
-                            modifier = Modifier.fillMaxWidth().wrapContentHeight()
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .wrapContentHeight()
                         )
                     }
                 }
@@ -210,6 +223,30 @@ fun GameItem(game: Game) {
                     }
                 }
 
+                if (game.hasFlag(GameFlag.Locked)) {
+                    Row(
+                        verticalAlignment = Alignment.Top,
+                        horizontalArrangement = Arrangement.End,
+                        modifier = Modifier.fillMaxSize()
+                    ) {
+                        Card(
+                            onClick = {
+                                Toast.makeText(
+                                    context,
+                                    "RAP installation is not implemented yet",
+                                    Toast.LENGTH_LONG
+                                ).show()
+                            }) {
+
+                            Icon(
+                                Icons.Outlined.Lock,
+                                contentDescription = "Game is locked",
+                                modifier = Modifier.size(30.dp).padding(7.dp)
+                            )
+                        }
+                    }
+                }
+
 //                val name = game.info.name.value
 //                if (name != null) {
 //                    Row(
@@ -228,32 +265,37 @@ fun GameItem(game: Game) {
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun GamesScreen() {
-    val games = remember { mutableStateOf(GameRepository.list()) }
+    val games = remember { GameRepository.list() }
     val isRefreshing = remember { mutableStateOf(false) }
     val coroutineScope = rememberCoroutineScope()
     val state = rememberPullToRefreshState()
 
+    val gameInProgress = games.find { it.progressList.isNotEmpty() }
+
     PullToRefreshBox(
         isRefreshing = isRefreshing.value,
         state = state,
-        onRefresh = { 
-            isRefreshing.value = true
-            coroutineScope.launch {
-                delay(300)
-                GameRepository.clear()
-                RPCS3.instance.collectGameInfo(RPCS3.rootDirectory, -1)
-                games.value = GameRepository.list()
-                isRefreshing.value = false 
+        onRefresh = {
+            if (gameInProgress == null) {
+                isRefreshing.value = true
+                coroutineScope.launch {
+                    GameRepository.clear()
+                    RPCS3.instance.collectGameInfo(RPCS3.rootDirectory, -1)
+                    delay(300)
+                    isRefreshing.value = false
+                }
             }
         },
         indicator = {
-            PullToRefreshDefaults.Indicator(
-                state = state,
-                isRefreshing = isRefreshing.value,
-                modifier = Modifier.align(Alignment.TopCenter),
-                color = MaterialTheme.colorScheme.onPrimary,
-                containerColor = MaterialTheme.colorScheme.primary
-            )
+            if (gameInProgress == null) {
+                PullToRefreshDefaults.Indicator(
+                    state = state,
+                    isRefreshing = isRefreshing.value,
+                    modifier = Modifier.align(Alignment.TopCenter),
+                    color = MaterialTheme.colorScheme.onPrimary,
+                    containerColor = MaterialTheme.colorScheme.primary
+                )
+            }
         },
     ) {
         LazyVerticalGrid(
@@ -261,8 +303,8 @@ fun GamesScreen() {
             horizontalArrangement = Arrangement.Center,
             modifier = Modifier.fillMaxSize()
         ) {
-            items(count = games.value.size, key = { index -> games.value[index].info.path }) { index ->
-                GameItem(games.value[index])
+            items(count = games.size, key = { index -> games[index].info.path }) { index ->
+                GameItem(games[index])
             }
         }
     }

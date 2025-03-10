@@ -33,6 +33,7 @@
 #include "Loader/TAR.h"
 #include "Utilities/File.h"
 #include "Utilities/JIT.h"
+#include "Utilities/StrFmt.h"
 #include "Utilities/StrUtil.h"
 #include "Utilities/Thread.h"
 #include "hidapi_libusb.h"
@@ -521,10 +522,15 @@ static std::pair<std::string, std::u32string> g_strings[] = {
     MAKE_STRING(INVALID, "Invalid"),
 };
 
+enum GameFlags {
+  kGameFlagLocked = 1 << 0,
+};
+
 struct GameInfo {
   std::string path;
   std::string name;
   std::string iconPath;
+  int flags = 0;
 };
 
 class Progress {
@@ -584,15 +590,15 @@ static void sendGameInfo(JNIEnv *env, jlong progressId,
 
   jmethodID gameConstructor = ensure(env->GetMethodID(
       gameClass, "<init>",
-      "(Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;)V"));
+      "(Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;I)V"));
 
   std::vector<jobject> objects;
   objects.reserve(infos.size());
 
   for (const auto &info : infos) {
-    objects.push_back(env->NewObject(gameClass, gameConstructor,
-                                     wrap(env, info.path), wrap(env, info.name),
-                                     wrap(env, info.iconPath), nullptr));
+    objects.push_back(env->NewObject(
+        gameClass, gameConstructor, wrap(env, info.path), wrap(env, info.name),
+        wrap(env, info.iconPath), jint(info.flags)));
   }
 
   auto result = env->NewObjectArray(objects.size(), gameClass, nullptr);
@@ -605,24 +611,57 @@ static void sendGameInfo(JNIEnv *env, jlong progressId,
                             progressId);
 }
 
+static bool tryUnlockGame(std::string_view path, const psf::registry &psf) {
+  auto contentId = psf::get_string(psf, "CONTENT_ID");
+  auto titleId = psf::get_string(psf, "TITLE_ID");
+
+  if (contentId.empty() || titleId.empty()) {
+    return true;
+  }
+
+  const auto licenseDir = fmt::format(
+      "%shome/%s/exdata/", rpcs3::utils::get_hdd0_dir(), Emu.GetUsr());
+
+  const auto licenseFile = fmt::format("%s%s", licenseDir, contentId);
+  if (std::filesystem::is_regular_file(licenseFile + ".rap")) {
+    return true;
+  }
+
+  if (std::filesystem::is_regular_file(licenseFile + ".edat")) {
+    return true;
+  }
+
+  return false;
+}
+
 static void collectGamePaths(std::vector<std::string> &paths,
                              const std::string &rootDir) {
   std::error_code ec;
-  for (auto entry :
-       std::filesystem::recursive_directory_iterator(rootDir, ec)) {
-    if (!entry.is_directory()) {
-      continue;
-    }
+  std::vector<std::filesystem::path> workList;
+  workList.reserve(32);
+  workList.push_back(rootDir);
 
-    if (std::filesystem::is_regular_file(entry.path() / "PARAM.SFO")) {
-      paths.push_back(entry.path().string());
-      continue;
+  while (!workList.empty()) {
+    auto dir = std::move(workList.back());
+    workList.pop_back();
+
+    for (auto entry : std::filesystem::directory_iterator(dir, ec)) {
+      if (!entry.is_directory()) {
+        continue;
+      }
+
+      if (std::filesystem::is_regular_file(entry.path() / "PARAM.SFO")) {
+        paths.push_back(entry.path().string());
+        continue;
+      }
+
+      workList.push_back(entry.path());
     }
   }
 }
 
-static std::optional<GameInfo> parsePsf(std::string path,
-                                        const psf::registry &psf) {
+static std::optional<GameInfo> fetchGameInfo(std::string path,
+                                             const psf::registry &psf) {
   auto title_id = psf::get_string(psf, "TITLE_ID");
   auto name = psf::get_string(psf, "TITLE");
   auto app_ver = psf::get_string(psf, "APP_VER");
@@ -647,10 +686,21 @@ static std::optional<GameInfo> parsePsf(std::string path,
 
   auto icon_path = path + "/ICON0.PNG";
   auto movie_path = path + "/ICON1.PAM";
+
+  bool isLocked = std::filesystem::is_directory(path + "/C00") ||
+                  std::filesystem::path(path).parent_path().filename() == "C00";
+
+  int flags = 0;
+
+  if (isLocked && !tryUnlockGame(path, psf)) {
+    flags |= kGameFlagLocked;
+  }
+
   return GameInfo{
       .path = path,
       .name = std::string(name),
       .iconPath = icon_path,
+      .flags = flags,
   };
 }
 
@@ -693,7 +743,7 @@ static void collectGameInfo(JNIEnv *env, jlong progressId,
 
     rpcs3_android.notice("collectGameInfo: sfo at %s", path);
 
-    if (auto gameInfo = parsePsf(path, psf)) {
+    if (auto gameInfo = fetchGameInfo(path, psf)) {
       gameInfos.push_back(std::move(*gameInfo));
 
       if (gameInfos.size() >= 10) {
@@ -703,7 +753,8 @@ static void collectGameInfo(JNIEnv *env, jlong progressId,
   }
 
   submit();
-  progress.success(paths.size());
+
+  progress.success(processed);
 }
 
 class MainThreadProcessor {
@@ -1160,8 +1211,6 @@ private:
     MessageDialog::popPendingProgressId(workload.progressId);
 
     Progress(env, workload.progressId).success(0);
-
-    collectGameInfo(env, workload.progressId, {{workload.path}});
   }
 } static g_compilationQueue;
 
@@ -1821,7 +1870,7 @@ extern "C" JNIEXPORT jboolean JNICALL Java_net_rpcs3_RPCS3_installPkgFile(
   }};
 
   for (auto &reader : readers) {
-    if (auto gameInfo = parsePsf("", reader.get_psf())) {
+    if (auto gameInfo = fetchGameInfo("", reader.get_psf())) {
       sendGameInfo(env, requestId, {{*gameInfo}});
     }
   }
@@ -1860,10 +1909,10 @@ extern "C" JNIEXPORT jboolean JNICALL Java_net_rpcs3_RPCS3_installPkgFile(
   }
 
   if (worker()) {
-    // auto paths = std::vector(bootable_paths.begin(), bootable_paths.end());
-    // collectGameInfo(env, requestId, paths);
+    auto paths = std::vector(bootable_paths.begin(), bootable_paths.end());
+    collectGameInfo(env, -1, paths);
 
-    for (auto &path : bootable_paths) {
+    for (auto &path : paths) {
       g_compilationQueue.push(progress, std::move(path));
     }
   }
