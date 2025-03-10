@@ -15,7 +15,8 @@ import java.io.File
 import java.security.InvalidParameterException
 
 enum class GameFlag {
-    Locked
+    Locked,
+    Trial
 }
 
 @Serializable

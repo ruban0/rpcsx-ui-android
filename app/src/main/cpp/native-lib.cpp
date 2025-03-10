@@ -524,6 +524,7 @@ static std::pair<std::string, std::u32string> g_strings[] = {
 
 enum GameFlags {
   kGameFlagLocked = 1 << 0,
+  kGameFlagTrial = 1 << 1,
 };
 
 struct GameInfo {
@@ -611,7 +612,19 @@ static void sendGameInfo(JNIEnv *env, jlong progressId,
                             progressId);
 }
 
-static bool tryUnlockGame(std::string_view path, const psf::registry &psf) {
+static void sendVshBootable(JNIEnv *env, jlong progressId) {
+  auto dev_flash = g_cfg_vfs.get_dev_flash();
+
+  sendGameInfo(
+      env, progressId,
+      {{GameInfo{
+          .path = dev_flash + "/vsh/module/vsh.self",
+          .name = "VSH",
+          .iconPath = dev_flash + "vsh/resource/explore/icon/icon_home.png",
+      }}});
+}
+
+static bool tryUnlockGame(const psf::registry &psf) {
   auto contentId = psf::get_string(psf, "CONTENT_ID");
   auto titleId = psf::get_string(psf, "TITLE_ID");
 
@@ -660,6 +673,24 @@ static void collectGamePaths(std::vector<std::string> &paths,
   }
 }
 
+static std::string locateEbootPath(const std::string &root) {
+
+  for (auto suffix : {
+           "/EBOOT.BIN",
+           "/USRDIR/EBOOT.BIN",
+           "/USRDIR/ISO.BIN.EDAT",
+           "/PS3_GAME/USRDIR/EBOOT.BIN",
+       }) {
+    std::string tryPath = root + suffix;
+
+    if (std::filesystem::is_regular_file(tryPath)) {
+      return tryPath;
+    }
+  }
+
+  return {};
+}
+
 static std::optional<GameInfo> fetchGameInfo(std::string path,
                                              const psf::registry &psf) {
   auto title_id = psf::get_string(psf, "TITLE_ID");
@@ -678,22 +709,38 @@ static std::optional<GameInfo> fetchGameInfo(std::string path,
     return {};
   }
 
+  auto rootPath =
+      rpcs3::utils::get_hdd0_dir() + "game/" + std::string(title_id) + "/";
+
   if (path.empty()) {
-    path = rpcs3::utils::get_hdd0_dir() + "game/" + std::string(title_id) + "/";
-    rpcs3_android.warning("title_id(%s) -> path(%s)", title_id.data(),
-                          path.c_str());
+    path = rootPath;
   }
 
   auto icon_path = path + "/ICON0.PNG";
   auto movie_path = path + "/ICON1.PAM";
 
-  bool isLocked = std::filesystem::is_directory(path + "/C00") ||
-                  std::filesystem::path(path).parent_path().filename() == "C00";
+  bool isLocked = false;
+
+  auto ebootPath = locateEbootPath(rootPath);
+  if (!ebootPath.empty()) {
+    if (fs::file eboot{ebootPath};
+        eboot && eboot.size() >= 4 && eboot.read<u32>() == "SCE\0"_u32) {
+      isLocked = !decrypt_self(eboot, nullptr, nullptr);
+    }
+  }
 
   int flags = 0;
 
-  if (isLocked && !tryUnlockGame(path, psf)) {
+  if (isLocked) {
     flags |= kGameFlagLocked;
+    rpcs3_android.warning("game %s is locked", rootPath);
+  }
+
+  bool isTrial = std::filesystem::is_directory(rootPath + "/C00");
+
+  if (isTrial && !tryUnlockGame(psf)) {
+    flags |= kGameFlagTrial;
+    rpcs3_android.warning("game %s is trial", rootPath);
   }
 
   return GameInfo{
@@ -1540,6 +1587,11 @@ Java_net_rpcs3_RPCS3_startMainThreadProcessor(JNIEnv *env, jobject) {
 extern "C" JNIEXPORT jboolean JNICALL Java_net_rpcs3_RPCS3_collectGameInfo(
     JNIEnv *env, jobject, jstring jrootDir, jlong progressId) {
 
+  if (std::filesystem::is_regular_file(g_cfg_vfs.get_dev_flash() +
+                                       "/vsh/module/vsh.self")) {
+    sendVshBootable(env, progressId);
+  }
+
   collectGameInfo(env, progressId, {unwrap(env, jrootDir)});
   return true;
 }
@@ -1778,15 +1830,7 @@ extern "C" JNIEXPORT jboolean JNICALL Java_net_rpcs3_RPCS3_installFw(
     return false;
   }
 
-  auto dev_flash = g_cfg_vfs.get_dev_flash();
-
-  sendGameInfo(
-      env, progressId,
-      {{GameInfo{
-          .path = dev_flash + "/vsh/module/vsh.self",
-          .name = "VSH",
-          .iconPath = dev_flash + "vsh/resource/explore/icon/icon_home.png",
-      }}});
+  sendVshBootable(env, progressId);
 
   jlong processed = 0;
   for (const auto &update_filename : update_filenames) {
@@ -1836,7 +1880,8 @@ extern "C" JNIEXPORT jboolean JNICALL Java_net_rpcs3_RPCS3_installFw(
 
   sendFirmwareInstalled(env, utils::get_firmware_version());
 
-  g_compilationQueue.push(progress, dev_flash + "/vsh/module/vsh.self");
+  g_compilationQueue.push(progress,
+                          g_cfg_vfs.get_dev_flash() + "/vsh/module/vsh.self");
   // progress.success(update_filenames.size());
   return true;
 }

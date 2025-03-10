@@ -100,7 +100,16 @@ fun GameItem(game: Game) {
         Card(shape = RectangleShape, modifier = Modifier
             .fillMaxSize()
             .combinedClickable(
-                onClick = {
+                onClick = click@{
+                    if (game.hasFlag(GameFlag.Locked)) {
+                        AlertDialogQueue.showDialog(
+                            title = "Missing key",
+                            message = "This game requires key to play"
+                        )
+
+                        return@click
+                    }
+
                     if (FirmwareRepository.version.value == null) {
                         AlertDialogQueue.showDialog(
                             title = "Firmware Missing",
@@ -223,7 +232,7 @@ fun GameItem(game: Game) {
                     }
                 }
 
-                if (game.hasFlag(GameFlag.Locked)) {
+                if (game.hasFlag(GameFlag.Locked) || game.hasFlag(GameFlag.Trial)) {
                     Row(
                         verticalAlignment = Alignment.Top,
                         horizontalArrangement = Arrangement.End,
