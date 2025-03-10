@@ -78,7 +78,7 @@ fun AppNavHost() {
                     GameRepository.createGameInstallEntry(installProgress)
 
                     thread(isDaemon = true) {
-                        if (!RPCS3.instance.installPkgFile(fd, installProgress)) {
+                        if (!RPCS3.instance.install(fd, installProgress)) {
                             try {
                                 ProgressRepository.onProgressEvent(installProgress, -1, 0)
                             } catch (e: Exception) {

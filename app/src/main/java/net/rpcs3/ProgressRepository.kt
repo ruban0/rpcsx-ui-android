@@ -11,6 +11,7 @@ import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.core.app.NotificationCompat
 import androidx.core.app.NotificationManagerCompat
+import net.rpcs3.dialogs.AlertDialogQueue
 import java.util.concurrent.ConcurrentHashMap
 
 data class ProgressEntry(
@@ -126,9 +127,9 @@ class ProgressRepository {
                             }
                         }
                     } else if (value < 0) {
-                        if (text == null) {
-                            builder.setContentText("Installation failed")
-                        }
+                        val contentText = text ?: "Installation failed"
+                        builder.setContentText(contentText)
+                        AlertDialogQueue.showDialog(title, contentText)
                         with(notificationManager) {
                             notify(requestId.toInt(), builder.build())
                         }
