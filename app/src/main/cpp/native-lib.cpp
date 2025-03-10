@@ -603,9 +603,7 @@ static void sendGameInfo(JNIEnv *env, jlong progressId,
     }
 
     objects.push_back(env->NewObject(
-        gameClass, gameConstructor,
-        wrap(env, path),
-        wrap(env, info.name),
+        gameClass, gameConstructor, wrap(env, path), wrap(env, info.name),
         wrap(env, Emu.GetCallbacks().resolve_path(info.iconPath)),
         jint(info.flags)));
   }
@@ -632,14 +630,7 @@ static void sendVshBootable(JNIEnv *env, jlong progressId) {
       }}});
 }
 
-static bool tryUnlockGame(const psf::registry &psf) {
-  auto contentId = psf::get_string(psf, "CONTENT_ID");
-  auto titleId = psf::get_string(psf, "TITLE_ID");
-
-  if (contentId.empty() || titleId.empty()) {
-    return true;
-  }
-
+static bool tryUnlockGame(const char *contentId) {
   const auto licenseDir = fmt::format(
       "%shome/%s/exdata/", rpcs3::utils::get_hdd0_dir(), Emu.GetUsr());
 
@@ -744,12 +735,25 @@ static std::optional<GameInfo> fetchGameInfo(std::string path,
   bool isLocked = false;
 
   auto ebootPath = locateEbootPath(rootPath);
+
+  SelfAdditionalInfo info;
+
   if (!ebootPath.empty()) {
     if (fs::file eboot{ebootPath};
         eboot && eboot.size() >= 4 && eboot.read<u32>() == "SCE\0"_u32) {
-      isLocked = !decrypt_self(eboot, nullptr, nullptr);
+      isLocked = !decrypt_self(eboot, nullptr, &info);
     }
   }
+
+  auto npd = [&]() -> NPD_HEADER * {
+    for (auto &supplemental : info.supplemental_hdr) {
+      if (supplemental.type == 3) {
+        return &supplemental.PS3_npdrm_header.npd;
+      }
+    }
+
+    return nullptr;
+  }();
 
   int flags = 0;
 
@@ -760,7 +764,7 @@ static std::optional<GameInfo> fetchGameInfo(std::string path,
 
   bool isTrial = std::filesystem::is_directory(rootPath + "/C00");
 
-  if (isTrial && !tryUnlockGame(psf)) {
+  if (isTrial && (!npd || !tryUnlockGame(npd->content_id))) {
     flags |= kGameFlagTrial;
     rpcs3_android.warning("game %s is trial", rootPath);
   }
@@ -1981,4 +1985,65 @@ extern "C" JNIEXPORT jboolean JNICALL Java_net_rpcs3_RPCS3_installPkgFile(
   }
 
   return true;
+}
+
+extern "C" JNIEXPORT jboolean JNICALL Java_net_rpcs3_RPCS3_installKey(
+    JNIEnv *env, jobject, jint fd, jlong requestId, jstring gamePath) {
+  auto file = fs::file::from_native_handle(fd);
+  Progress progress(env, requestId);
+
+  AtExit atExit{[&] { file.release_handle(); }};
+
+  if (file.size() == 16) {
+    auto rootPath = unwrap(env, gamePath);
+    auto ebootPath = locateEbootPath(rootPath);
+
+    std::vector<std::uint8_t> bytes;
+    if (!file.read(bytes, 16)) {
+      progress.failure("Failed to read key");
+      return false;
+    }
+
+    SelfAdditionalInfo info;
+
+    decrypt_self(fs::file(ebootPath), nullptr, &info);
+
+    auto npd = [&]() -> NPD_HEADER * {
+      for (auto &supplemental : info.supplemental_hdr) {
+        if (supplemental.type == 3) {
+          return &supplemental.PS3_npdrm_header.npd;
+        }
+      }
+
+      return nullptr;
+    }();
+
+    if (npd == nullptr) {
+      progress.failure("Failed to fetch NPDRM of SELF");
+      return false;
+    }
+
+    const auto licenseFile =
+        fmt::format("%shome/%s/exdata/%s.rap", rpcs3::utils::get_hdd0_dir(),
+                    Emu.GetUsr(), npd->content_id);
+
+    if (!fs::write_file(licenseFile,
+                        fs::open_mode::create + fs::open_mode::trunc, bytes)) {
+      progress.failure(fmt::format("Failed to write key to %s", licenseFile));
+      return false;
+    }
+
+    if (!decrypt_self(fs::file(ebootPath))) {
+      progress.failure("Provided key is invalid for selected game");
+      fs::remove_file(licenseFile);
+      return false;
+    }
+
+    collectGameInfo(env, -1, {rootPath});
+    g_compilationQueue.push(progress, std::move(ebootPath));
+    return true;
+  }
+
+  progress.failure("Unsupported key type");
+  return false;
 }

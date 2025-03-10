@@ -1,7 +1,9 @@
 package net.rpcs3.ui.games
 
 import android.content.Intent
-import android.widget.Toast
+import android.net.Uri
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.combinedClickable
@@ -51,6 +53,7 @@ import net.rpcs3.FirmwareRepository
 import net.rpcs3.Game
 import net.rpcs3.GameFlag
 import net.rpcs3.GameInfo
+import net.rpcs3.GameProgress
 import net.rpcs3.GameProgressType
 import net.rpcs3.GameRepository
 import net.rpcs3.ProgressRepository
@@ -58,6 +61,7 @@ import net.rpcs3.RPCS3
 import net.rpcs3.RPCS3Activity
 import net.rpcs3.dialogs.AlertDialogQueue
 import java.io.File
+import kotlin.concurrent.thread
 
 private fun withAlpha(color: Color, alpha: Float): Color {
     return Color(
@@ -74,6 +78,47 @@ fun GameItem(game: Game) {
     val context = LocalContext.current
     val menuExpanded = remember { mutableStateOf(false) }
     val iconExists = remember { mutableStateOf(false) }
+
+    val installKeyLauncher = rememberLauncherForActivityResult(contract = ActivityResultContracts.GetContent()) { uri: Uri? ->
+        if (uri != null) {
+            val descriptor = context.contentResolver.openAssetFileDescriptor(uri, "r")
+            val fd = descriptor?.parcelFileDescriptor?.fd
+
+            if (fd != null) {
+                val installProgress =
+                    ProgressRepository.create(context, "License Installation") { entry ->
+                        if (entry.isFinished()) {
+                            descriptor.close()
+                            FirmwareRepository.progressChannel.value = null
+                        }
+                    }
+
+                game.addProgress(GameProgress(installProgress, GameProgressType.Compile))
+
+                thread(isDaemon = true) {
+                    if (!RPCS3.instance.installKey(fd, installProgress, game.info.path)) {
+                        try {
+                            ProgressRepository.onProgressEvent(installProgress, -1, 0)
+                        } catch (e: Exception) {
+                            e.printStackTrace()
+                        }
+                    }
+
+                    try {
+                        descriptor.close()
+                    } catch (e: Exception) {
+                        e.printStackTrace()
+                    }
+                }
+            } else {
+                try {
+                    descriptor?.close()
+                } catch (e: Exception) {
+                    e.printStackTrace()
+                }
+            }
+        }
+    }
 
     Column {
         DropdownMenu(
@@ -240,11 +285,7 @@ fun GameItem(game: Game) {
                     ) {
                         Card(
                             onClick = {
-                                Toast.makeText(
-                                    context,
-                                    "RAP installation is not implemented yet",
-                                    Toast.LENGTH_LONG
-                                ).show()
+                                installKeyLauncher.launch("*/*")
                             }) {
 
                             Icon(
