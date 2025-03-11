@@ -13,7 +13,7 @@ import android.os.Build
 
 private const val ACTION_USB_PERMISSION = "net.rpcs3.USB_PERMISSION"
 
-fun listenUsbEvents(context: Context) {
+fun listenUsbEvents(context: Context): () -> Unit  {
     val mPermissionIntent = PendingIntent.getBroadcast(
         context,
         0,
@@ -78,6 +78,10 @@ fun listenUsbEvents(context: Context) {
         } else {
             usbManager.requestPermission(usbDevice, mPermissionIntent)
         }
+    }
+
+    return {
+        context.unregisterReceiver(usbReceiver)
     }
 }
 

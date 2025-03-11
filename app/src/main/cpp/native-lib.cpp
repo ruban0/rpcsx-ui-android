@@ -1552,9 +1552,22 @@ extern "C" JNIEXPORT jboolean JNICALL
 Java_net_rpcs3_RPCS3_initialize(JNIEnv *env, jobject, jstring rootDir) {
   auto rootDirStr = fix_dir_path(unwrap(env, rootDir));
 
-  g_android_executable_dir = rootDirStr;
-  g_android_config_dir = rootDirStr + "config/";
-  g_android_cache_dir = rootDirStr + "cache/";
+  if (g_android_executable_dir != rootDirStr) {
+    g_android_executable_dir = rootDirStr;
+    g_android_config_dir = rootDirStr + "config/";
+    g_android_cache_dir = rootDirStr + "cache/";
+
+    std::filesystem::create_directories(g_android_config_dir);
+    std::error_code ec;
+    // std::filesystem::remove_all(g_android_cache_dir, ec);
+    std::filesystem::create_directories(g_android_cache_dir);
+  }
+
+  if (g_initialized) {
+    return true;
+  }
+
+  g_initialized = true;
 
   if (int r = libusb_set_option(nullptr, LIBUSB_OPTION_NO_DEVICE_DISCOVERY,
                                 nullptr);
@@ -1563,76 +1576,65 @@ Java_net_rpcs3_RPCS3_initialize(JNIEnv *env, jobject, jstring rootDir) {
         "libusb_set_option(LIBUSB_OPTION_NO_DEVICE_DISCOVERY) -> %d", r);
   }
 
-  if (!g_initialized) {
-    g_initialized = true;
-    logs::stored_message ver{rpcs3_android.always()};
-    ver.text = fmt::format("RPCS3 v%s", rpcs3::get_verbose_version());
+  logs::stored_message ver{rpcs3_android.always()};
+  ver.text = fmt::format("RPCS3 v%s", rpcs3::get_verbose_version());
 
-    // Write System information
-    logs::stored_message sys{rpcs3_android.always()};
-    sys.text = utils::get_system_info();
+  // Write System information
+  logs::stored_message sys{rpcs3_android.always()};
+  sys.text = utils::get_system_info();
 
-    // Write OS version
-    logs::stored_message os{rpcs3_android.always()};
-    os.text = utils::get_OS_version_string();
+  // Write OS version
+  logs::stored_message os{rpcs3_android.always()};
+  os.text = utils::get_OS_version_string();
 
-    // Write current time
-    logs::stored_message time{rpcs3_android.always()};
-    time.text =
-        fmt::format("Current Time: %s", std::chrono::system_clock::now());
+  // Write current time
+  logs::stored_message time{rpcs3_android.always()};
+  time.text = fmt::format("Current Time: %s", std::chrono::system_clock::now());
 
-    logs::set_init(
-        {std::move(ver), std::move(sys), std::move(os), std::move(time)});
+  logs::set_init(
+      {std::move(ver), std::move(sys), std::move(os), std::move(time)});
 
-    auto set_rlim = [](int resource, std::uint64_t limit) {
-      rlimit64 rlim{};
-      if (getrlimit64(resource, &rlim) != 0) {
-        rpcs3_android.error("failed to get rlimit for %d", resource);
-        return;
-      }
+  auto set_rlim = [](int resource, std::uint64_t limit) {
+    rlimit64 rlim{};
+    if (getrlimit64(resource, &rlim) != 0) {
+      rpcs3_android.error("failed to get rlimit for %d", resource);
+      return;
+    }
 
-      rlim.rlim_cur = std::min<std::size_t>(rlim.rlim_max, limit);
-      rpcs3_android.error("rlimit[%d] = %u (requested %u, max %u)", resource,
-                          rlim.rlim_cur, limit, rlim.rlim_max);
+    rlim.rlim_cur = std::min<std::size_t>(rlim.rlim_max, limit);
+    rpcs3_android.error("rlimit[%d] = %u (requested %u, max %u)", resource,
+                        rlim.rlim_cur, limit, rlim.rlim_max);
 
-      if (setrlimit64(resource, &rlim) != 0) {
-        rpcs3_android.error("failed to set rlimit for %d", resource);
-        return;
-      }
-    };
+    if (setrlimit64(resource, &rlim) != 0) {
+      rpcs3_android.error("failed to set rlimit for %d", resource);
+      return;
+    }
+  };
 
-    set_rlim(RLIMIT_MEMLOCK, 0x80000000);
-    set_rlim(RLIMIT_NOFILE, 0x10000);
-    set_rlim(RLIMIT_STACK, 128 * 1024 * 1024);
+  set_rlim(RLIMIT_MEMLOCK, 0x80000000);
+  set_rlim(RLIMIT_NOFILE, 0x10000);
+  set_rlim(RLIMIT_STACK, 128 * 1024 * 1024);
 
-    virtual_pad_handler::set_on_connect_cb(initVirtualPad);
-    setupCallbacks();
-    Emu.SetHasGui(false);
-    Emu.Init();
+  virtual_pad_handler::set_on_connect_cb(initVirtualPad);
+  setupCallbacks();
+  Emu.SetHasGui(false);
+  Emu.Init();
 
-    g_cfg_input.player1.handler.set(pad_handler::virtual_pad);
-    g_cfg_input.player1.device.from_string("Virtual");
+  g_cfg_input.player1.handler.set(pad_handler::virtual_pad);
+  g_cfg_input.player1.device.from_string("Virtual");
 
-    g_cfg_input.save("", g_cfg_input_configs.default_config);
+  g_cfg_input.save("", g_cfg_input_configs.default_config);
 
-    // g_cfg_vfs.dev_hdd0.to_string().ends_with("/")
-    g_cfg.video.resolution.set(video_resolution::_720p);
-    g_cfg.video.renderer.set(video_renderer::vulkan);
-    g_cfg.core.ppu_decoder.set(ppu_decoder_type::llvm);
-    g_cfg.core.spu_decoder.set(spu_decoder_type::llvm);
-    g_cfg.core.llvm_cpu.from_string("");
-    g_cfg.video.perf_overlay.perf_overlay_enabled.set(true);
+  // g_cfg_vfs.dev_hdd0.to_string().ends_with("/")
+  g_cfg.video.resolution.set(video_resolution::_720p);
+  g_cfg.video.renderer.set(video_renderer::vulkan);
+  g_cfg.core.ppu_decoder.set(ppu_decoder_type::llvm);
+  g_cfg.core.spu_decoder.set(spu_decoder_type::llvm);
+  g_cfg.core.llvm_cpu.from_string("");
+  g_cfg.video.perf_overlay.perf_overlay_enabled.set(true);
 
-    // g_cfg.core.llvm_cpu.from_string(fallback_cpu_detection());
-    Emulator::SaveSettings(g_cfg.to_string(), Emu.GetTitleID());
-  }
-
-  std::filesystem::create_directories(g_android_config_dir);
-  std::error_code ec;
-  // std::filesystem::remove_all(g_android_cache_dir, ec);
-  std::filesystem::create_directories(g_android_cache_dir);
-
-  Emu.Kill();
+  // g_cfg.core.llvm_cpu.from_string(fallback_cpu_detection());
+  Emulator::SaveSettings(g_cfg.to_string(), Emu.GetTitleID());
   return true;
 }
 

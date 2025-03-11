@@ -43,6 +43,7 @@ class RPCS3 {
     external fun collectGameInfo(rootDir: String, progressId: Long): Boolean
 
     companion object {
+        var initialized = false
         val instance = RPCS3()
         var rootDirectory: String = ""
 
