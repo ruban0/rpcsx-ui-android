@@ -252,7 +252,7 @@ class PadOverlay(context: Context?, attrs: AttributeSet?) : SurfaceView(context,
                 }
             }
 
-            if (hit) {
+            if (hit || force) {
                 invalidate()
             }
 
