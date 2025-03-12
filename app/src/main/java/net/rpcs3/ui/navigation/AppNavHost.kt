@@ -16,6 +16,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Menu
 import androidx.compose.material.icons.outlined.Build
+import androidx.compose.material.icons.outlined.Info
 import androidx.compose.material3.CenterAlignedTopAppBar
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DrawerValue
@@ -44,6 +45,7 @@ import net.rpcs3.FirmwareRepository
 import net.rpcs3.PrecompilerService
 import net.rpcs3.PrecompilerServiceAction
 import net.rpcs3.ProgressRepository
+import net.rpcs3.RPCS3
 import net.rpcs3.dialogs.AlertDialogQueue
 import net.rpcs3.ui.games.GamesScreen
 
@@ -144,6 +146,15 @@ fun AppNavHost() {
                             }
                         )
                         HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp))
+
+                        NavigationDrawerItem(
+                            label = { Text("System Info") },
+                            selected = false,
+                            icon = { Icon(Icons.Outlined.Info, contentDescription = null) },
+                            onClick = {
+                                AlertDialogQueue.showDialog("System Info", RPCS3.instance.systemInfo())
+                            }
+                        )
                     }
                 }
             }

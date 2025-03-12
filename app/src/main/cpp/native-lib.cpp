@@ -2163,3 +2163,31 @@ extern "C" JNIEXPORT jboolean JNICALL Java_net_rpcs3_RPCS3_installKey(
   Progress(env, progressId).failure("Unsupported key type");
   return false;
 }
+
+extern "C" JNIEXPORT jstring JNICALL
+Java_net_rpcs3_RPCS3_systemInfo(JNIEnv *env, jobject) {
+  std::string result;
+
+  result += utils::get_system_info();
+  result += "\n";
+  result += "LLVM CPU: ";
+  result += fallback_cpu_detection();
+  result += "\n";
+
+  {
+    vk::instance device_enum_context;
+    if (device_enum_context.create("RPCS3", true)) {
+      device_enum_context.bind();
+      const std::vector<vk::physical_device> &gpus =
+          device_enum_context.enumerate_devices();
+
+      for (const auto &gpu : gpus) {
+        result += "GPU: ";
+        result += gpu.get_name();
+        result += "\n";
+      }
+    }
+  }
+
+  return wrap(env, result);
+}
