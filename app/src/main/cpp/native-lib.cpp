@@ -1624,6 +1624,7 @@ Java_net_rpcs3_RPCS3_initialize(JNIEnv *env, jobject, jstring rootDir) {
   // g_cfg_vfs.dev_hdd0.to_string().ends_with("/")
   g_cfg.video.resolution.set(video_resolution::_720p);
   g_cfg.video.renderer.set(video_renderer::vulkan);
+  g_cfg.video.shadermode.set(shader_mode::async_recompiler);
   g_cfg.core.ppu_decoder.set(ppu_decoder_type::llvm);
   g_cfg.core.spu_decoder.set(spu_decoder_type::llvm);
   // g_cfg.core.llvm_cpu.from_string("");
