@@ -10,6 +10,7 @@ import android.hardware.usb.UsbDevice
 import android.hardware.usb.UsbDeviceConnection
 import android.hardware.usb.UsbManager
 import android.os.Build
+import android.util.Log
 
 private const val ACTION_USB_PERMISSION = "net.rpcs3.USB_PERMISSION"
 
@@ -29,6 +30,7 @@ fun listenUsbEvents(context: Context): () -> Unit  {
     val usbReceiver = object : BroadcastReceiver() {
         override fun onReceive(context: Context, intent: Intent) {
             if (UsbManager.ACTION_USB_DEVICE_DETACHED == intent.action) {
+                Log.i("USB", "device detached")
                 val device: UsbDevice? = intent.getParcelableExtra(UsbManager.EXTRA_DEVICE)
                 if (device != null) {
                     UsbDeviceRepository.detach(device)
@@ -39,10 +41,13 @@ fun listenUsbEvents(context: Context): () -> Unit  {
 
             if (UsbManager.ACTION_USB_DEVICE_ATTACHED == intent.action) {
                 val device: UsbDevice? = intent.getParcelableExtra(UsbManager.EXTRA_DEVICE)
+                Log.i("USB", "device attached")
                 if (device != null) {
                     if (usbManager.hasPermission(device)) {
+                        Log.i("USB", "permission granted, attaching")
                         UsbDeviceRepository.attach(device, usbManager)
                     } else {
+                        Log.i("USB", "no permission, requesting")
                         usbManager.requestPermission(device, mPermissionIntent)
                     }
                 }
@@ -59,8 +64,13 @@ fun listenUsbEvents(context: Context): () -> Unit  {
                     )
                 ) {
                     if (usbManager.hasPermission(device)) {
+                        Log.i("USB", "permission granted, attaching")
                         UsbDeviceRepository.attach(device, usbManager)
+                    } else {
+                        Log.i("USB", "no permission after request")
                     }
+                } else {
+                    Log.i("USB", "permission request aborted")
                 }
             }
         }
