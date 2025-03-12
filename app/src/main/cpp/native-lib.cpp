@@ -139,10 +139,6 @@ struct GraphicsFrame : GSFrameBase {
   ANativeWindow *getNativeWindow() const {
     ANativeWindow *result;
     while ((result = g_native_window.load()) == nullptr) [[unlikely]] {
-      if (activeNativeWindow != nullptr) {
-        return activeNativeWindow;
-      }
-
       if (Emu.IsStopped()) {
         return nullptr;
       }
@@ -150,7 +146,7 @@ struct GraphicsFrame : GSFrameBase {
       std::this_thread::sleep_for(std::chrono::milliseconds(100));
     }
 
-    if (result != activeNativeWindow) {
+    if (result != activeNativeWindow) [[unlikely]] {
       ANativeWindow_acquire(result);
 
       if (activeNativeWindow != nullptr) {
