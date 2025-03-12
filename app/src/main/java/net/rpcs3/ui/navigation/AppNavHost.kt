@@ -66,12 +66,24 @@ fun AppNavHost() {
 
     val installPkgLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.GetContent(),
-        onResult = { uri: Uri? -> PrecompilerService.start(context, PrecompilerServiceAction.Install, uri) }
+        onResult = { uri: Uri? ->
+            if (uri != null) PrecompilerService.start(
+                context,
+                PrecompilerServiceAction.Install,
+                uri
+            )
+        }
     )
 
     val installFwLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.GetContent(),
-        onResult = { uri: Uri? -> PrecompilerService.start(context, PrecompilerServiceAction.InstallFirmware, uri) }
+        onResult = { uri: Uri? ->
+            if (uri != null) PrecompilerService.start(
+                context,
+                PrecompilerServiceAction.InstallFirmware,
+                uri
+            )
+        }
     )
 
     MaterialTheme {
