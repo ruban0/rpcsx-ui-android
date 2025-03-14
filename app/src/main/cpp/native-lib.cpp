@@ -1242,9 +1242,6 @@ private:
         if (rootPath.filename() == "USRDIR") {
           rootPath = rootPath.parent_path();
         }
-        if (rootPath.filename() == "PS3_GAME") {
-          rootPath = rootPath.parent_path();
-        }
       }
     }
 
@@ -2165,6 +2162,9 @@ static bool installIso(JNIEnv *env, fs::file &&file, jlong progressId) {
 
       for (auto entry : iso.open_dir(path)) {
         if (entry.name == "." || entry.name == "..") {
+          continue;
+        }
+        if (entry.name == "PS3_UPDATE" && path.empty()) {
           continue;
         }
 
