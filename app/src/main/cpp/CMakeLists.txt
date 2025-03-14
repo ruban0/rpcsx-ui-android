@@ -122,6 +122,7 @@ add_subdirectory(rpcs3 EXCLUDE_FROM_ALL)
 
 add_library(${CMAKE_PROJECT_NAME} SHARED
     native-lib.cpp
+    iso.cpp
     rpcs3/rpcs3/stb_image.cpp
     rpcs3/rpcs3/Input/ds3_pad_handler.cpp
     rpcs3/rpcs3/Input/ds4_pad_handler.cpp
