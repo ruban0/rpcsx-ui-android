@@ -36,7 +36,9 @@
 #include "Utilities/StrFmt.h"
 #include "Utilities/StrUtil.h"
 #include "Utilities/Thread.h"
+#include "block_dev.hpp"
 #include "hidapi_libusb.h"
+#include "iso.hpp"
 #include "libusb.h"
 #include "rpcs3_version.h"
 #include "util/asm.hpp"
@@ -265,6 +267,7 @@ enum class FileType {
   Pkg,
   Edat,
   Rap,
+  Iso,
 };
 
 static FileType getFileType(const fs::file &file) {
@@ -291,6 +294,10 @@ static FileType getFileType(const fs::file &file) {
 
   if (file.size() == 16) {
     return FileType::Rap;
+  }
+
+  if (iso_fs::open(std::make_unique<file_view_block_dev>(file))) {
+    return FileType::Iso;
   }
 
   return FileType::Unknown;
@@ -746,28 +753,28 @@ static std::string locateEbootPath(const std::string &root) {
   return {};
 }
 
-static std::optional<GameInfo> fetchGameInfo(std::string path,
-                                             const psf::registry &psf) {
+static std::optional<GameInfo> fetchGameInfo(const psf::registry &psf) {
   auto titleId = std::string(psf::get_string(psf, "TITLE_ID"));
   auto name = std::string(psf::get_string(psf, "TITLE"));
   auto bootable = psf::get_integer(psf, "BOOTABLE", 0);
+  auto category = psf::get_string(psf, "CATEGORY");
 
   if (!bootable || titleId.empty()) {
     return {};
   }
 
-  auto rootPath = rpcs3::utils::get_hdd0_dir() + "game/" + titleId + "/";
+  bool isDiscGame = category == "DG";
 
-  if (path.empty()) {
-    path = rootPath;
-  }
-
-  auto iconPath = path + "/ICON0.PNG";
-  auto movie_path = path + "/ICON1.PAM";
+  auto path = isDiscGame
+                  ? fs::get_config_dir() + "games/" + titleId  + "/"
+                  : rpcs3::utils::get_hdd0_dir() + "game/" + titleId + "/";
+  auto dataPath = isDiscGame ? path + "PS3_GAME/" : path;
+  auto iconPath = dataPath + "ICON0.PNG";
+  auto moviePath = dataPath + "ICON1.PAM";
 
   bool isLocked = false;
 
-  auto ebootPath = locateEbootPath(rootPath);
+  auto ebootPath = locateEbootPath(path);
 
   if (!ebootPath.empty()) {
     if (fs::file eboot{ebootPath};
@@ -780,17 +787,17 @@ static std::optional<GameInfo> fetchGameInfo(std::string path,
 
   if (isLocked) {
     flags |= kGameFlagLocked;
-    rpcs3_android.warning("game %s is locked", rootPath);
+    rpcs3_android.warning("game %s is locked", path);
   }
 
-  auto c00Path = rootPath + "/C00";
+  auto c00Path = path + "/C00";
 
   bool isTrial = std::filesystem::is_directory(c00Path);
 
   if (isTrial) {
     if (!tryUnlockGame(psf)) {
       flags |= kGameFlagTrial;
-      rpcs3_android.warning("game %s is trial", rootPath);
+      rpcs3_android.warning("game %s is trial", path);
     } else {
       auto c00IconPath = c00Path + "/ICON0.PNG";
       if (std::filesystem::is_regular_file(c00IconPath)) {
@@ -854,7 +861,7 @@ static void collectGameInfo(JNIEnv *env, jlong progressId,
 
     rpcs3_android.notice("collectGameInfo: sfo at %s", path);
 
-    if (auto gameInfo = fetchGameInfo(path, psf)) {
+    if (auto gameInfo = fetchGameInfo(psf)) {
       gameInfos.push_back(std::move(*gameInfo));
 
       if (gameInfos.size() >= 10) {
@@ -1231,6 +1238,9 @@ private:
       if (!std::filesystem::is_directory(rootPath)) {
         rootPath = rootPath.parent_path();
         if (rootPath.filename() == "USRDIR") {
+          rootPath = rootPath.parent_path();
+        }
+        if (rootPath.filename() == "PS3_GAME") {
           rootPath = rootPath.parent_path();
         }
       }
@@ -1950,7 +1960,7 @@ static bool installPkg(JNIEnv *env, fs::file &&file, jlong progressId) {
   });
 
   for (auto &reader : readers) {
-    if (auto gameInfo = fetchGameInfo("", reader.get_psf())) {
+    if (auto gameInfo = fetchGameInfo(reader.get_psf())) {
       sendGameInfo(env, progressId, {{*gameInfo}});
     }
   }
@@ -2107,6 +2117,125 @@ static bool installRap(JNIEnv *env, fs::file &&file, jlong progressId,
   return true;
 }
 
+static bool installIso(JNIEnv *env, fs::file &&file, jlong progressId) {
+  auto optIso = iso_fs::open(std::make_unique<file_view_block_dev>(file));
+  Progress progress(env, progressId);
+
+  if (!optIso) {
+    progress.failure("Failed to read ISO");
+    return false;
+  }
+
+  auto iso = std::move(*optIso);
+  auto sfo_file = iso.open("PS3_GAME/PARAM.SFO");
+
+  if (!sfo_file) {
+    progress.failure("Failed to locate PARAM.SFO in ISO");
+    return false;
+  }
+
+  auto sfo = psf::load_object(sfo_file, "iso://PS3_GAME/PARAM.SFO");
+  auto title_id = psf::get_string(sfo, "TITLE_ID");
+
+  if (title_id.empty()) {
+    progress.failure("Failed to fetch TITLE_ID from PARAM.SFO in ISO");
+    return false;
+  }
+
+  if (auto gameInfo = fetchGameInfo(sfo)) {
+    sendGameInfo(env, progressId, {{*gameInfo}});
+  }
+
+  std::filesystem::path destinationPath =
+      fs::get_config_dir() + "games/" + std::string(title_id);
+  std::size_t filesCount = 0;
+
+  auto roots = [&] {
+    std::vector<std::filesystem::path> result;
+    std::vector<std::filesystem::path> workList;
+    workList.push_back({});
+    result.push_back({});
+
+    while (!workList.empty()) {
+      auto path = std::move(workList.back());
+      workList.pop_back();
+
+      for (auto entry : iso.open_dir(path)) {
+        if (entry.name == "." || entry.name == "..") {
+          continue;
+        }
+
+        if (entry.is_directory) {
+          result.push_back(path / entry.name);
+          workList.push_back(path / entry.name);
+        } else {
+          filesCount++;
+        }
+      }
+    }
+
+    return result;
+  }();
+
+  progress.report(0, filesCount);
+
+  std::size_t processedFiles = 0;
+  std::error_code ec;
+
+  for (auto &root : roots) {
+    auto rootDestPath = root.empty() ? destinationPath : destinationPath / root;
+
+    std::filesystem::create_directories(rootDestPath, ec);
+    if (ec) {
+      progress.failure(fmt::format("Failed to create dir %s: %s",
+                                   rootDestPath.string(), ec.message()));
+      return false;
+    }
+
+    for (auto entry : iso.open_dir(root)) {
+      if (entry.name == "." || entry.name == "..") {
+        continue;
+      }
+
+      auto entryDestPath = rootDestPath / entry.name;
+
+      if (entry.is_directory) {
+        std::filesystem::create_directories(entryDestPath, ec);
+        if (ec) {
+          progress.failure(fmt::format("Failed to create dir %s: %s",
+                                       entryDestPath.string(), ec.message()));
+          return false;
+        }
+
+        continue;
+      }
+      auto file = iso.open(root / entry.name);
+
+      if (!file) {
+        progress.failure(fmt::format("Failed to open file in ISO: %s",
+                                     (root / entry.name).string()));
+        return false;
+      }
+
+      if (!fs::write_file(entryDestPath,
+                          fs::open_mode::create + fs::open_mode::trunc,
+                          file.to_vector<std::uint8_t>())) {
+        progress.failure(fmt::format("Failed to write file: %s, dest %s",
+                                     entryDestPath.string(),
+                                     destinationPath.string()));
+        return false;
+      }
+
+      progress.report(processedFiles++, filesCount);
+    }
+  }
+
+  collectGameInfo(env, -1, {destinationPath});
+  auto ebootPath = locateEbootPath(destinationPath);
+  g_compilationQueue.push(progress, std::move(ebootPath));
+  return true;
+}
+
 extern "C" JNIEXPORT jboolean JNICALL Java_net_rpcs3_RPCS3_installFw(
     JNIEnv *env, jobject, jint fd, jlong progressId) {
   return installPup(env, fs::file::from_native_handle(fd), progressId);
@@ -2133,6 +2262,9 @@ Java_net_rpcs3_RPCS3_install(JNIEnv *env, jobject, jint fd, jlong progressId) {
 
   case FileType::Edat:
     return installEdat(env, std::move(file), progressId);
+
+  case FileType::Iso:
+    return installIso(env, std::move(file), progressId);
 
   case FileType::Rap:
     Progress(env, progressId)
