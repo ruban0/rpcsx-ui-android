@@ -168,7 +168,8 @@ iso_fs::read_dir(const iso::DirEntry &entry) {
   std::vector<iso::DirEntry> isoEntries;
   std::vector<std::string> names;
 
-  for (std::size_t block = first_block, end = first_block + entry.entry_length;
+  for (std::size_t block = first_block,
+                   end = first_block + entry.length.value() / block_size;
        block < end;) {
     auto block_count = m_dev->read(block, buffer.data(), total_block_count);
     block += block_count;
@@ -177,15 +178,23 @@ iso_fs::read_dir(const iso::DirEntry &entry) {
     std::size_t buffer_size = block_count * block_size;
 
     std::size_t count = 0;
-    while (buffer_offset + sizeof(iso::DirEntry) < buffer_size) {
+    while (buffer_offset < buffer_size) {
       auto item = reinterpret_cast<const iso::DirEntry *>(buffer.data() +
                                                           buffer_offset);
 
+      buffer_offset += item->entry_length;
+
       if (item->entry_length < sizeof(iso::DirEntry)) {
-        break;
+        buffer_offset += block_size;
+        buffer_offset &= ~(block_size - 1);
+        continue;
       }
 
-      buffer_offset += item->entry_length;
+      if (item->filename_length == 0 ||
+          item->filename_length + sizeof(iso::DirEntry) > item->entry_length) {
+        continue;
+      }
+
       auto filename = std::string_view(reinterpret_cast<const char *>(item + 1),
                                        item->filename_length);
 
@@ -198,12 +207,14 @@ iso_fs::read_dir(const iso::DirEntry &entry) {
         }
       }
 
-      filename = filename.substr(0, filename.find_first_of(";\n"));
+      filename = filename.substr(0, filename.find_first_of(";\0\n"));
+      if (filename.empty()) {
+        continue;
+      }
+
       isoEntries.push_back(*item);
       names.emplace_back(filename);
     }
-
-    break;
   }
 
   return {std::move(isoEntries), std::move(names)};
