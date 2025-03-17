@@ -2326,3 +2326,75 @@ Java_net_rpcs3_RPCS3_systemInfo(JNIEnv *env, jobject) {
 
   return wrap(env, result);
 }
+
+static cfg::_base *find_cfg_node(cfg::_base *root, std::string_view path) {
+  auto pathList = fmt::split(path, {"@@"});
+  std::ranges::reverse(pathList);
+
+  while (!pathList.empty()) {
+    auto elem = pathList.back();
+    pathList.pop_back();
+    if (elem.empty()) {
+      continue;
+    }
+
+    auto root_node = dynamic_cast<cfg::node *>(root);
+    if (root_node == nullptr) {
+      return nullptr;
+    }
+
+    cfg::_base *child_node = nullptr;
+
+    for (auto node : root_node->get_nodes()) {
+      if (node->get_name() == elem) {
+        child_node = node;
+        break;
+      }
+    }
+
+    if (child_node == nullptr) {
+      return nullptr;
+    }
+
+    root = child_node;
+  }
+
+  return root;
+}
+
+extern "C" JNIEXPORT jstring JNICALL
+Java_net_rpcs3_RPCS3_settingsGet(JNIEnv *env, jobject, jstring jpath) {
+  auto root = find_cfg_node(&g_cfg, unwrap(env, jpath));
+
+  if (root == nullptr) {
+    return nullptr;
+  }
+
+  return wrap(env, root->to_json().dump(4));
+}
+
+extern "C" JNIEXPORT jboolean JNICALL Java_net_rpcs3_RPCS3_settingsSet(
+    JNIEnv *env, jobject, jstring jpath, jstring jvalue) {
+  nlohmann::json value;
+  try {
+    value = nlohmann::json::parse(unwrap(env, jvalue));
+  } catch (...) {
+    rpcs3_android.error("settingsSet: node %s passed with invalid json '%s'", unwrap(env, jpath), unwrap(env, jvalue));
+    return false;
+  }
+
+  auto root = find_cfg_node(&g_cfg, unwrap(env, jpath));
+
+  if (root == nullptr) {
+    rpcs3_android.error("settingsSet: node %s not found", unwrap(env, jpath));
+    return false;
+  }
+
+  if (root->from_json(value, !Emu.IsStopped())) {
+    rpcs3_android.error("settingsSet: node %s not accepts value '%s'", unwrap(env, jpath), value.dump());
+    Emulator::SaveSettings(g_cfg.to_string(), "");
+    return true;
+  }
+
+  return false;
+}

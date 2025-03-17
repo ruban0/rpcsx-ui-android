@@ -5,6 +5,7 @@ import android.content.Context
 import android.content.Intent
 import android.net.Uri
 import android.provider.DocumentsContract
+import android.util.Log
 import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
@@ -13,7 +14,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowLeft
-import androidx.compose.material.icons.filled.Build
+import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
@@ -34,18 +35,131 @@ import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import net.rpcs3.R
+import net.rpcs3.RPCS3
+import net.rpcs3.dialogs.AlertDialogQueue
 import net.rpcs3.provider.AppDataDocumentProvider
 import net.rpcs3.ui.common.ComposePreview
 import net.rpcs3.ui.settings.components.core.PreferenceIcon
 import net.rpcs3.ui.settings.components.core.PreferenceSubtitle
 import net.rpcs3.ui.settings.components.core.PreferenceTitle
 import net.rpcs3.ui.settings.components.preference.RegularPreference
+import net.rpcs3.ui.settings.components.preference.SingleSelectionDialog
+import net.rpcs3.ui.settings.components.preference.SwitchPreference
+import org.json.JSONObject
+
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun AdvancedSettingsScreen(
+    modifier: Modifier = Modifier,
+    navigateBack: () -> Unit,
+    navigateTo: (path: String) -> Unit,
+    settings: JSONObject,
+    path: String = ""
+) {
+    val settingValue = remember { mutableStateOf(settings) }
+
+    val topBarScrollBehavior = TopAppBarDefaults.enterAlwaysScrollBehavior()
+    Scaffold(
+        modifier = Modifier
+            .nestedScroll(topBarScrollBehavior.nestedScrollConnection)
+            .then(modifier),
+        topBar = {
+            val titlePath = path.replace("@@", " / ")
+            LargeTopAppBar(
+                title = { Text(text = "Advanced Settings$titlePath" , fontWeight = FontWeight.Medium) },
+                scrollBehavior = topBarScrollBehavior,
+                navigationIcon = {
+                    IconButton(
+                        onClick = navigateBack
+                    ) {
+                        Icon(imageVector = Icons.AutoMirrored.Default.KeyboardArrowLeft, null)
+                    }
+                }
+            )
+        }
+    ) { contentPadding ->
+        LazyColumn(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(contentPadding),
+        ) {
+            settings.keys().forEach { key ->
+                val itemPath = "$path@@$key"
+                item(key = key) {
+                    val itemObject = settingValue.value[key] as? JSONObject
+
+                    if (itemObject != null) {
+                        when (val type = if (itemObject.has("type")) itemObject.getString("type") else null) {
+                             null -> {
+                                RegularPreference(
+                                    title = key,
+                                    leadingIcon = Icons.Default.Settings
+                                ) {
+                                    Log.e("Main", "Navigate to settings$itemPath, object $itemObject")
+                                    navigateTo("settings$itemPath")
+                                }
+                            }
+
+                            "bool" -> {
+                                var itemValue by remember {  mutableStateOf(itemObject.getBoolean("value"))  }
+                                SwitchPreference (
+                                    checked = itemValue,
+                                    title = key,
+                                    leadingIcon = Icons.Default.Settings
+                                ) { value ->
+                                    if (!RPCS3.instance.settingsSet(itemPath, if (value) "true" else "false")) {
+                                        AlertDialogQueue.showDialog("Setting error", "Failed to assign $itemPath value $value")
+                                    } else {
+                                        itemObject.put("value", value)
+                                        itemValue = value
+                                    }
+                                }
+                            }
+
+                            "enum" -> {
+                                var itemValue by remember {  mutableStateOf(itemObject.getString("value"))  }
+                                val variantsJson = itemObject.getJSONArray("variants")
+                                val variants = ArrayList<String>()
+                                for (i in 0..<variantsJson.length()) {
+                                    variants.add(variantsJson.getString(i))
+                                }
+
+                                SingleSelectionDialog(
+                                    currentValue = if (itemValue in variants) itemValue else variants[0],
+                                    values = variants,
+                                    icon = Icons.Default.Settings,
+                                    title = key,
+                                    onValueChange = {
+                                            value ->
+                                        if (!RPCS3.instance.settingsSet(itemPath, "\"" + value + "\"")) {
+                                            AlertDialogQueue.showDialog("Setting error", "Failed to assign $itemPath value $value")
+                                        } else {
+                                            itemObject.put("value", value)
+                                            itemValue = value
+                                        }
+                                    })
+
+                            }
+
+                            else -> {
+                                Log.e("Main", "Unimplemented setting type $type")
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun SettingsScreen(
     modifier: Modifier = Modifier,
-    navigateBack: () -> Unit
+    navigateBack: () -> Unit,
+    navigateTo: (path: String) -> Unit,
 ) {
     val topBarScrollBehavior = TopAppBarDefaults.enterAlwaysScrollBehavior()
     Scaffold(
@@ -100,6 +214,12 @@ fun SettingsScreen(
             }
 
             item { HorizontalDivider() }
+
+            item(key = "advanced_settings") {
+                RegularPreference(title = "Advanced Settings", leadingIcon = Icons.Default.Settings) {
+                    navigateTo("settings@@$")
+                }
+            }
 //            item(
 //                key = "firmware_installation",
 //            ) {
@@ -137,7 +257,7 @@ fun SettingsScreen(
 @Composable
 private fun SettingsScreenPreview() {
     ComposePreview {
-        SettingsScreen {}
+//        SettingsScreen {}
     }
 }
 

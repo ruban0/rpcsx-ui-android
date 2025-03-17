@@ -42,6 +42,8 @@ class RPCS3 {
     external fun overlayPadData(digital1: Int, digital2: Int, leftStickX: Int, leftStickY: Int, rightStickX: Int, rightStickY: Int): Boolean
     external fun collectGameInfo(rootDir: String, progressId: Long): Boolean
     external fun systemInfo(): String
+    external fun settingsGet(path: String): String;
+    external fun settingsSet(path: String, value: String): Boolean;
 
     companion object {
         var initialized = false
