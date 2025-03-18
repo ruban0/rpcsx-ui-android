@@ -2411,7 +2411,3 @@ extern "C" JNIEXPORT jboolean JNICALL Java_net_rpcs3_RPCS3_settingsSet(
 extern "C" JNIEXPORT jboolean JNICALL Java_net_rpcs3_RPCS3_supportsCustomDriverLoading(JNIEnv *env, jobject instance) {
   return access("/dev/kgsl-3d0", F_OK) == 0;
 }
-
-// extern "C" JNIEXPORT void JNICALL Java_net_rpcs3_utils_GpuDriverHelper_forceMaxGpuClocks(JNIEnv *env, jobject instance, jboolean enable) {
-//     adrenotools_set_turbo(enable);
-// }
