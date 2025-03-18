@@ -1616,9 +1616,10 @@ Java_net_rpcs3_RPCS3_initialize(JNIEnv *env, jobject, jstring rootDir) {
     }
   };
 
-  set_rlim(RLIMIT_MEMLOCK, 0x80000000);
-  set_rlim(RLIMIT_NOFILE, 0x10000);
+  set_rlim(RLIMIT_MEMLOCK, RLIM_INFINITY);
+  set_rlim(RLIMIT_NOFILE, RLIM_INFINITY);
   set_rlim(RLIMIT_STACK, 128 * 1024 * 1024);
+  set_rlim(RLIMIT_AS, RLIM_INFINITY);
 
   virtual_pad_handler::set_on_connect_cb(initVirtualPad);
   setupCallbacks();
