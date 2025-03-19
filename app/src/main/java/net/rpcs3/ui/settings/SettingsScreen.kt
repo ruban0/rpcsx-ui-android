@@ -108,9 +108,10 @@ fun AdvancedSettingsScreen(
 
                             "bool" -> {
                                 var itemValue by remember {  mutableStateOf(itemObject.getBoolean("value"))  }
+                                val def = itemObject.getBoolean("default")
                                 SwitchPreference (
                                     checked = itemValue,
-                                    title = key,
+                                    title = key + if (itemValue == def) "" else " *",
                                     leadingIcon = null
                                 ) { value ->
                                     if (!RPCS3.instance.settingsSet(itemPath, if (value) "true" else "false")) {
@@ -124,6 +125,7 @@ fun AdvancedSettingsScreen(
 
                             "enum" -> {
                                 var itemValue by remember {  mutableStateOf(itemObject.getString("value"))  }
+                                val def = itemObject.getString("default")
                                 val variantsJson = itemObject.getJSONArray("variants")
                                 val variants = ArrayList<String>()
                                 for (i in 0..<variantsJson.length()) {
@@ -134,7 +136,7 @@ fun AdvancedSettingsScreen(
                                     currentValue = if (itemValue in variants) itemValue else variants[0],
                                     values = variants,
                                     icon = null,
-                                    title = key,
+                                    title = key + if (itemValue == def) "" else " *",
                                     onValueChange = {
                                             value ->
                                         if (!RPCS3.instance.settingsSet(itemPath, "\"" + value + "\"")) {
@@ -149,11 +151,13 @@ fun AdvancedSettingsScreen(
                             "uint", "int" -> {
                                 var max = 0L
                                 var min = 0L
-                                var initialItemValue = 0L;
+                                var initialItemValue = 0L
+                                var def = 0L
                                 try {
                                     initialItemValue = itemObject.getString("value").toLong()
                                     max = itemObject.getString("max").toLong()
                                     min = itemObject.getString("min").toLong()
+                                    def = itemObject.getString("default").toLong()
                                 } catch (e: Exception) {
                                     e.printStackTrace()
                                 }
@@ -162,7 +166,7 @@ fun AdvancedSettingsScreen(
                                     SliderPreference(
                                         value = itemValue.toFloat(),
                                         valueRange = min.toFloat()..max.toFloat(),
-                                        title = key,
+                                        title = key + if (itemValue == def) "" else " *",
                                         steps = (max - min).toInt(),
                                         onValueChange = { value ->
                                             if (!RPCS3.instance.settingsSet(
@@ -191,12 +195,13 @@ fun AdvancedSettingsScreen(
                                 var itemValue by remember {  mutableDoubleStateOf(itemObject.getString("value").toDouble())  }
                                 val max = if (itemObject.has("max"))  itemObject.getString("max").toDouble() else 0.0
                                 val min =  if (itemObject.has("min"))  itemObject.getString("min").toDouble() else 0.0
+                                val def =  if (itemObject.has("default"))  itemObject.getString("default").toDouble() else 0.0
 
                                 if (min < max && max - min < 1000) {
                                     SliderPreference(
                                         value = itemValue.toFloat(),
                                         valueRange = min.toFloat()..max.toFloat(),
-                                        title = key,
+                                        title = key + if (itemValue == def) "" else " *",
                                         steps = (max - min + 1).toInt(),
                                         onValueChange = { value ->
                                             if (!RPCS3.instance.settingsSet(
@@ -213,7 +218,7 @@ fun AdvancedSettingsScreen(
                                                 itemValue = value.toDouble()
                                             }
                                         },
-                                        valueContent = { Text(itemValue.toString()) }
+                                        valueContent = { Text(itemValue.toString() ) }
                                     )
                                 }
                             }
