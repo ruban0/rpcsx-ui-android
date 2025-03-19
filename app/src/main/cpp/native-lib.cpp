@@ -1580,6 +1580,22 @@ Java_net_rpcs3_RPCS3_initialize(JNIEnv *env, jobject, jstring rootDir) {
         "libusb_set_option(LIBUSB_OPTION_NO_DEVICE_DISCOVERY) -> %d", r);
   }
 
+  // Initialize thread pool finalizer // ???
+  static_cast<void>(named_thread("", [](int) {}));
+
+	static std::unique_ptr<logs::listener> log_file;
+	{
+		// Check free space
+		fs::device_stat stats{};
+		if (!fs::statfs(fs::get_cache_dir(), stats) || stats.avail_free < 128 * 1024 * 1024)
+		{
+			std::fprintf(stderr, "Not enough free space for logs (%f KB)", stats.avail_free / 1000000.);
+		}
+
+		// Limit log size to ~25% of free space
+		log_file = logs::make_file_listener(fs::get_log_dir() + "RPCS3.log", stats.avail_free / 4);
+  }
+
   logs::stored_message ver{rpcs3_android.always()};
   ver.text = fmt::format("RPCS3 v%s", rpcs3::get_verbose_version());
 
