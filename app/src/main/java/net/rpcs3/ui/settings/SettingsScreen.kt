@@ -9,17 +9,16 @@ import android.util.Log
 import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.height
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowLeft
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.outlined.Build
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.LargeTopAppBar
@@ -28,6 +27,8 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableDoubleStateOf
+import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -44,12 +45,11 @@ import net.rpcs3.dialogs.AlertDialogQueue
 import net.rpcs3.provider.AppDataDocumentProvider
 import net.rpcs3.ui.common.ComposePreview
 import net.rpcs3.ui.settings.components.core.PreferenceIcon
-import net.rpcs3.ui.settings.components.core.PreferenceSubtitle
-import net.rpcs3.ui.settings.components.core.PreferenceTitle
+import net.rpcs3.ui.settings.components.preference.HomePreference
 import net.rpcs3.ui.settings.components.preference.RegularPreference
 import net.rpcs3.ui.settings.components.preference.SingleSelectionDialog
+import net.rpcs3.ui.settings.components.preference.SliderPreference
 import net.rpcs3.ui.settings.components.preference.SwitchPreference
-import net.rpcs3.ui.settings.components.preference.HomePreference
 import org.json.JSONObject
 
 
@@ -144,7 +144,68 @@ fun AdvancedSettingsScreen(
                                             itemValue = value
                                         }
                                     })
+                            }
 
+                            "uint", "int" -> {
+                                var itemValue by remember { mutableLongStateOf(itemObject.getString("value").toLong())  }
+                                val max = itemObject.getString("max").toLong()
+                                val min = itemObject.getString("min").toLong()
+
+                                if (min < max && max - min < 1000) {
+                                    SliderPreference(
+                                        value = itemValue.toFloat(),
+                                        valueRange = min.toFloat()..max.toFloat(),
+                                        title = key,
+                                        steps = (max - min).toInt(),
+                                        onValueChange = { value ->
+                                            if (!RPCS3.instance.settingsSet(
+                                                    itemPath,
+                                                    value.toLong().toString()
+                                                )
+                                            ) {
+                                                AlertDialogQueue.showDialog(
+                                                    "Setting error",
+                                                    "Failed to assign $itemPath value $value"
+                                                )
+                                            } else {
+                                                itemObject.put("value", value.toLong().toString())
+                                                itemValue = value.toLong()
+                                            }
+                                        },
+                                        valueContent = { Text(itemValue.toString()) }
+                                    )
+                                }
+                            }
+
+                            "float" -> {
+                                var itemValue by remember {  mutableDoubleStateOf(itemObject.getString("value").toDouble())  }
+                                val max = if (itemObject.has("max"))  itemObject.getString("max").toDouble() else 0.0
+                                val min =  if (itemObject.has("min"))  itemObject.getString("min").toDouble() else 0.0
+
+                                if (max > min) {
+                                    SliderPreference(
+                                        value = itemValue.toFloat(),
+                                        valueRange = min.toFloat()..max.toFloat(),
+                                        title = key,
+                                        steps = (max - min + 1).toInt(),
+                                        onValueChange = { value ->
+                                            if (!RPCS3.instance.settingsSet(
+                                                    itemPath,
+                                                    value.toString()
+                                                )
+                                            ) {
+                                                AlertDialogQueue.showDialog(
+                                                    "Setting error",
+                                                    "Failed to assign $itemPath value $value"
+                                                )
+                                            } else {
+                                                itemObject.put("value", value.toDouble().toString())
+                                                itemValue = value.toDouble()
+                                            }
+                                        },
+                                        valueContent = { Text(itemValue.toString()) }
+                                    )
+                                }
                             }
 
                             else -> {
