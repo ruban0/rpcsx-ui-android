@@ -27,19 +27,16 @@ android {
         create("custom-key") {
             val keystoreAlias = System.getenv("KEYSTORE_ALIAS") ?: ""
             val keystorePassword = System.getenv("KEYSTORE_PASS") ?: ""
-            val keystorePath = System.getenv("KEYSTORE_PATH") ?: ""
+            val debugKeystoreFile = file("${System.getProperty("user.home")}/debug.keystore")
+            val keystorePath = System.getenv("KEYSTORE_PATH") ?: debugKeystoreFile.path
 
-            val customKeystoreFile = file(keystorePath)
-
-            if (customKeystoreFile.exists() && customKeystoreFile.length() > 0) {
+            if (keystorePath.isNotEmpty() && file(keystorePath).exists()) {
                 keyAlias = keystoreAlias
                 keyPassword = keystorePassword
-                storeFile = customKeystoreFile
+                storeFile = file(keystorePath)
                 storePassword = keystorePassword
             } else {
                 println("⚠️ Custom keystore not found or empty! creating debug keystore.")
-
-                val debugKeystoreFile = file("${System.getProperty("user.home")}/debug.keystore")
 
                 if (!debugKeystoreFile.exists()) {
                     Runtime.getRuntime().exec(
