@@ -79,7 +79,7 @@ jobs:
       with:
         name: rpcs3-build
         path: |
-          app/build/outputs/apk/release/*
+          app/build/outputs/apk/release/rpcs3-release.apk
 
     - name: Create release
       uses: softprops/action-gh-release@v2
