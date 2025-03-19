@@ -147,10 +147,17 @@ fun AdvancedSettingsScreen(
                             }
 
                             "uint", "int" -> {
-                                var itemValue by remember { mutableLongStateOf(itemObject.getString("value").toLong())  }
-                                val max = itemObject.getString("max").toLong()
-                                val min = itemObject.getString("min").toLong()
-
+                                var max = 0L
+                                var min = 0L
+                                var initialItemValue = 0L;
+                                try {
+                                    initialItemValue = itemObject.getString("value").toLong()
+                                    max = itemObject.getString("max").toLong()
+                                    min = itemObject.getString("min").toLong()
+                                } catch (e: Exception) {
+                                    e.printStackTrace()
+                                }
+                                var itemValue by remember { mutableLongStateOf(initialItemValue) }
                                 if (min < max && max - min < 1000) {
                                     SliderPreference(
                                         value = itemValue.toFloat(),
@@ -168,7 +175,10 @@ fun AdvancedSettingsScreen(
                                                     "Failed to assign $itemPath value $value"
                                                 )
                                             } else {
-                                                itemObject.put("value", value.toLong().toString())
+                                                itemObject.put(
+                                                    "value",
+                                                    value.toLong().toString()
+                                                )
                                                 itemValue = value.toLong()
                                             }
                                         },
@@ -182,7 +192,7 @@ fun AdvancedSettingsScreen(
                                 val max = if (itemObject.has("max"))  itemObject.getString("max").toDouble() else 0.0
                                 val min =  if (itemObject.has("min"))  itemObject.getString("min").toDouble() else 0.0
 
-                                if (max > min) {
+                                if (min < max && max - min < 1000) {
                                     SliderPreference(
                                         value = itemValue.toFloat(),
                                         valueRange = min.toFloat()..max.toFloat(),
