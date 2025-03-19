@@ -758,7 +758,7 @@ static std::string locateEbootPath(const std::string &root) {
   return {};
 }
 
-static std::optional<GameInfo> fetchGameInfo(const psf::registry &psf) {
+static std::optional<GameInfo> fetchGameInfo(const psf::registry &psf, std::filesystem::path psfRootPath = {}) {
   auto titleId = std::string(psf::get_string(psf, "TITLE_ID"));
   auto name = std::string(psf::get_string(psf, "TITLE"));
   auto bootable = psf::get_integer(psf, "BOOTABLE", 0);
@@ -770,9 +770,27 @@ static std::optional<GameInfo> fetchGameInfo(const psf::registry &psf) {
 
   bool isDiscGame = category == "DG";
 
-  auto path = isDiscGame
-                  ? fs::get_config_dir() + "games/" + titleId + "/"
-                  : rpcs3::utils::get_hdd0_dir() + "game/" + titleId + "/";
+  std::string path;
+
+  if (!isDiscGame) {
+    path = rpcs3::utils::get_hdd0_dir() + "game/" + titleId + "/";
+  } else {
+    if (psfRootPath.empty()) {
+      path = fs::get_config_dir() + "games/" + titleId + "/";
+    } else {
+      // Locate game root path
+      if (psfRootPath.filename() == "USRDIR") {
+        psfRootPath = psfRootPath.parent_path();
+      }
+
+      if (psfRootPath.filename() == "PS3_GAME") {
+        psfRootPath = psfRootPath.parent_path();
+      }
+
+      path = psfRootPath;
+    }
+  }
+
   auto dataPath = isDiscGame ? path + "PS3_GAME/" : path;
   auto iconPath = dataPath + "ICON0.PNG";
   auto moviePath = dataPath + "ICON1.PAM";
@@ -868,7 +886,7 @@ static void collectGameInfo(JNIEnv *env, jlong progressId,
 
     rpcs3_android.notice("collectGameInfo: sfo at %s", path);
 
-    if (auto gameInfo = fetchGameInfo(psf)) {
+    if (auto gameInfo = fetchGameInfo(psf, path)) {
       gameInfos.push_back(std::move(*gameInfo));
 
       if (gameInfos.size() >= 10) {
