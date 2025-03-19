@@ -788,6 +788,9 @@ static std::optional<GameInfo> fetchGameInfo(const psf::registry &psf, std::file
       }
 
       path = psfRootPath;
+      if (!path.ends_with('/')) {
+        path += '/';
+      }
     }
   }
 
