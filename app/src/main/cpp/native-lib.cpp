@@ -1395,8 +1395,20 @@ static void setupCallbacks() {
           },
       .get_audio =
           [](auto...) {
-            std::shared_ptr<AudioBackend> result =
-                std::make_shared<CubebBackend>();
+            std::shared_ptr<AudioBackend> result;
+
+            switch (g_cfg.audio.renderer.get())
+		        {
+            case audio_renderer::null:
+              result = std::make_shared<NullAudioBackend>();
+              break;
+
+            case audio_renderer::cubeb:
+            default:
+              result = std::make_shared<CubebBackend>();
+              break;
+            }
+
             if (!result->Initialized()) {
               rpcs3_android.error(
                   "Audio renderer %s could not be initialized, using a Null "
