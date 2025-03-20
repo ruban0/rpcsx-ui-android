@@ -1685,6 +1685,13 @@ Java_net_rpcs3_RPCS3_initialize(JNIEnv *env, jobject, jstring rootDir) {
                    stats.avail_free / 1000000.);
     }
 
+    // preserve old log file
+    if (std::filesystem::exists(fs::get_log_dir() + "RPCS3.log")) {
+      std::error_code ec;
+      std::filesystem::remove(fs::get_log_dir() + "RPCS3.old.log", ec);
+      std::filesystem::rename(fs::get_log_dir() + "RPCS3.log", fs::get_log_dir() + "RPCS3.old.log", ec);
+    }
+
     // Limit log size to ~25% of free space
     log_file = logs::make_file_listener(fs::get_log_dir() + "RPCS3.log",
                                         stats.avail_free / 4);
