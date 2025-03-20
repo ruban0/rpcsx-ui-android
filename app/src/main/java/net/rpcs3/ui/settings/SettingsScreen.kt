@@ -7,6 +7,7 @@ import android.net.Uri
 import android.provider.DocumentsContract
 import android.util.Log
 import android.widget.Toast
+import androidx.documentfile.provider.DocumentFile
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.Spacer
@@ -16,6 +17,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowLeft
+import androidx.compose.material.icons.filled.Share
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.outlined.Build
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -378,6 +380,33 @@ fun SettingsScreen(
                             confirmText = "Close",
                             dismissText = ""
                         )
+                    }
+                }
+            }
+
+            item(key = "share_logs") {
+                HomePreference(
+                    title = "Share Log",
+                    icon = { Icon(imageVector = Icons.Default.Share, contentDescription = null) },
+                    description = "Share RPCS3's log file to debug issues"
+                ) {
+                    val file = DocumentFile.fromSingleUri(
+                        context,
+                        DocumentsContract.buildDocumentUri(
+                            AppDataDocumentProvider.AUTHORITY,
+                            "${AppDataDocumentProvider.ROOT_ID}/cache/RPCS3.log"
+                        )
+                    )
+
+                    if (file != null && file.exists() && file.length() != 0L) {
+                        val intent = Intent(Intent.ACTION_SEND).apply {
+                            setDataAndType(file.uri, "text/plain")
+                            addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                            putExtra(Intent.EXTRA_STREAM, file.uri)
+                        }
+                        context.startActivity(Intent.createChooser(intent, "Share Log File"))
+                    } else {
+                        Toast.makeText(context, "Log file not found!", Toast.LENGTH_SHORT).show()
                     }
                 }
             }
