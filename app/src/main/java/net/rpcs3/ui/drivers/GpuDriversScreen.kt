@@ -1,7 +1,6 @@
 package net.rpcs3.ui.drivers
 
 import android.content.Context
-import android.content.pm.ApplicationInfo
 import android.net.Uri
 import android.util.Log
 import androidx.activity.compose.rememberLauncherForActivityResult
@@ -148,15 +147,10 @@ fun GpuDriversScreen(navigateBack: () -> Unit) {
                             }
 
                             val path = if (metadata.name == "Default") "" else file.path
-                            val field =
-                                ApplicationInfo::class.java.getField("nativeLibraryDir")
-                            val appInfo = context.packageManager.getApplicationInfo(context.packageName, 0);
-                            val nativeLibraryDir = field.get(appInfo) as String
 
                             Log.e("Driver", "path $path, internal data dir ${context.filesDir}")
                             RPCS3.instance.settingsSet("Video@@Vulkan@@Custom Driver@@Path", "\"" + path + "\"")
                             RPCS3.instance.settingsSet("Video@@Vulkan@@Custom Driver@@Internal Data Directory", "\"" + context.filesDir + "\"")
-                            RPCS3.instance.settingsSet("Video@@Vulkan@@Custom Driver@@Hook Directory", "\"" + nativeLibraryDir + "\"")
                         },
                         onDelete = if (metadata.name == "Default") null else { driverFile ->
                             coroutineScope.launch {
