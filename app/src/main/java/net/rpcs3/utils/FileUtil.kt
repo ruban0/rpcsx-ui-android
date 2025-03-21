@@ -38,24 +38,28 @@ object FileUtil {
             while (workList.isNotEmpty()) {
                 val currentFolderUri = workList.removeAt(0)
 
+                val paramSfo =
+                    uriOpenFile(context, currentFolderUri, "PS3_GAME/PARAM.SFO") ?: uriOpenFile(
+                        context, currentFolderUri, "PARAM.SFO"
+                    )
+
+                if (paramSfo != null) {
+                    val installDir =
+                        RPCS3.instance.getDirInstallPath(paramSfo.parcelFileDescriptor.fd)
+                    paramSfo.close()
+
+                    if (installDir != null) {
+                        batchDirs += InstallableFolder(currentFolderUri, installDir)
+                    } else {
+                        workList.add(currentFolderUri)
+                    }
+
+                    continue
+                }
+
                 listFiles(currentFolderUri, context).forEach { item ->
                     if (item.isDirectory) {
-                        val paramSfo =
-                            uriOpenFile(context, item.uri, "PS3_GAME/PARAM.SFO") ?: uriOpenFile(
-                                context, item.uri, "PARAM.SFO"
-                            )
-                        if (paramSfo != null) {
-                            val installDir =
-                                RPCS3.instance.getDirInstallPath(paramSfo.parcelFileDescriptor.fd)
-                            paramSfo.close()
-                            if (installDir != null) {
-                                batchDirs += InstallableFolder(item.uri, installDir)
-                            } else {
-                                workList.add(item.uri)
-                            }
-                        } else {
-                            workList.add(item.uri)
-                        }
+                        workList.add(item.uri)
                     } else {
                         batchFiles += item.uri
                     }
@@ -74,7 +78,7 @@ object FileUtil {
                 }
 
                 val progress = ProgressRepository.create(context, "Installing Directory")
-                GameRepository.add(arrayOf(GameInfo(it.targetPath)), progress)
+                GameRepository.add(arrayOf(GameInfo("$")), progress)
                 copyDirUriToInternalStorage(context, it.uri, it.targetPath, progress)
                 RPCS3.instance.collectGameInfo(it.targetPath, -1L)
             }
@@ -100,7 +104,7 @@ object FileUtil {
             listFiles(currentFolderUri, context).forEach { item ->
                 val file = File(currentFolderTarget, item.filename)
                 if (item.isDirectory) {
-                    file.mkdir()
+                    file.mkdirs()
                     workList.add(Pair(item.uri, file.path))
                 } else {
                     fileList.add(Pair(item.uri, file.path))
