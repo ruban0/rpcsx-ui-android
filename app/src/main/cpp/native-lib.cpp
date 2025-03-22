@@ -1311,17 +1311,12 @@ private:
 
     bool is_vsh = workload.path.ends_with("/vsh.self");
 
-    Emu.SetTestMode();
+    Emu.SetState(system_state::running);
 
     MessageDialog::pushPendingProgressId(workload.progressId);
 
-    vm::init();
     g_fxo->init<named_thread<progress_dialog_server>>();
     g_fxo->init<main_ppu_module<lv2_obj>>();
-
-    void init_ppu_functions(utils::serial * ar, bool full);
-    init_ppu_functions(nullptr, true);
-
     g_fxo->init(false, nullptr);
     auto rootPath = std::filesystem::path(workload.path);
 
@@ -1335,24 +1330,6 @@ private:
         }
       }
     }
-
-    g_cfg.core.llvm_precompilation.set(true);
-    g_cfg.core.spu_cache.set(true);
-    g_cfg.core.llvm_threads.set(2);
-    g_cfg.core.spu_decoder.set(spu_decoder_type::llvm);
-    g_cfg.core.ppu_decoder.set(ppu_decoder_type::llvm);
-
-    g_cfg.core.libraries_control.set_set([]() {
-      std::set<std::string> set;
-
-      extern const std::map<std::string_view, int> g_prx_list;
-
-      for (const auto &lib : g_prx_list) {
-        set.emplace(std::string(lib.first) + ":lle");
-      }
-
-      return set;
-    }());
 
     auto &_main = *ensure(g_fxo->try_get<main_ppu_module<lv2_obj>>());
 
@@ -1411,13 +1388,11 @@ private:
       }
     }
 
-    rpcs3_android.error("Going to precompile PPU");
     ppu_precompile(dir_queue, mod_list.empty() ? nullptr : &mod_list);
-    rpcs3_android.error("Going to precompile SPU");
-    spu_cache::initialize(false);
 
     rpcs3_android.error("Finalization");
-    Emu.Kill();
+    g_fxo->reset();
+    Emu.SetState(system_state::stopped);
 
     MessageDialog::popPendingProgressId(workload.progressId);
 
