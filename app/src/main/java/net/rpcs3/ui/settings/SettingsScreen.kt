@@ -170,7 +170,7 @@ fun AdvancedSettingsScreen(
                                             title = "Reset Setting",
                                             message = "Do you want to reset '$key' to its default value?",
                                             onConfirm = {
-                                                if (RPCS3.instance.settingsSet(itemPath, def.toString())) {
+                                                if (RPCS3.instance.settingsSet(itemPath, "\"" + def + "\"")) {
                                                     itemObject.put("value", def)
                                                     itemValue = def
                                                 } else {
