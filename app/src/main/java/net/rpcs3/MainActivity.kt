@@ -52,15 +52,19 @@ class MainActivity : ComponentActivity() {
             createNotificationChannel(channel)
         }
 
-        thread {
-            RPCS3.instance.startMainThreadProcessor()
-        }
-
         if (!RPCS3.initialized) {
             RPCS3.instance.initialize(RPCS3.rootDirectory)
             val nativeLibraryDir = packageManager.getApplicationInfo(packageName, 0).nativeLibraryDir
             RPCS3.instance.settingsSet("Video@@Vulkan@@Custom Driver@@Hook Directory", "\"" + nativeLibraryDir + "\"")
             RPCS3.initialized = true
+
+            thread {
+                RPCS3.instance.startMainThreadProcessor()
+            }
+
+            thread {
+                RPCS3.instance.processCompilationQueue()
+            }
         }
 
         unregisterUsbEventListener = listenUsbEvents(this)

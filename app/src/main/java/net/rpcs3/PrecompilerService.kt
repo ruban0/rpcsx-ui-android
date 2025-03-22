@@ -58,10 +58,6 @@ class PrecompilerService : Service() {
 
     override fun onCreate() {
         super.onCreate()
-
-        thread {
-            RPCS3.instance.processCompilationQueue()
-        }
     }
 
     fun install(isFw: Boolean, uri: Uri, installProgress: Long): Boolean {
@@ -121,6 +117,8 @@ class PrecompilerService : Service() {
                     if (isFwInstall) {
                         FirmwareRepository.progressChannel.value = null
                     }
+
+                    stopSelf(startId)
                 }
             }
 
@@ -144,14 +142,19 @@ class PrecompilerService : Service() {
         }
 
         thread {
+            var installResult = false
             if (uri != null) {
-                install(isFwInstall, uri, installProgress)
+                installResult = install(isFwInstall, uri, installProgress)
             } else batch?.forEach { uri ->
                 // FIXME: create child progress
-                install(isFwInstall, uri, installProgress)
+                if (install(isFwInstall, uri, installProgress)) {
+                    installResult = true
+                }
             }
 
-            stopSelf(startId)
+            if (!installResult) {
+                stopSelf(startId)
+            }
         }
 
         return START_STICKY
