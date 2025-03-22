@@ -7,7 +7,6 @@ import android.net.Uri
 import android.provider.DocumentsContract
 import android.util.Log
 import android.widget.Toast
-import androidx.documentfile.provider.DocumentFile
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.Spacer
@@ -17,8 +16,8 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowLeft
-import androidx.compose.material.icons.filled.Share
 import androidx.compose.material.icons.filled.Settings
+import androidx.compose.material.icons.filled.Share
 import androidx.compose.material.icons.outlined.Build
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
@@ -41,6 +40,7 @@ import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import androidx.documentfile.provider.DocumentFile
 import net.rpcs3.R
 import net.rpcs3.RPCS3
 import net.rpcs3.dialogs.AlertDialogQueue
@@ -196,7 +196,7 @@ fun AdvancedSettingsScreen(
                                     e.printStackTrace()
                                 }
                                 var itemValue by remember { mutableLongStateOf(initialItemValue) }
-                                if (min < max && max - min < 1000) {
+                                if (min < max) {
                                     SliderPreference(
                                         value = itemValue.toFloat(),
                                         valueRange = min.toFloat()..max.toFloat(),
@@ -245,7 +245,7 @@ fun AdvancedSettingsScreen(
                                 val min =  if (itemObject.has("min"))  itemObject.getString("min").toDouble() else 0.0
                                 val def =  if (itemObject.has("default"))  itemObject.getString("default").toDouble() else 0.0
 
-                                if (min < max && max - min < 1000) {
+                                if (min < max) {
                                     SliderPreference(
                                         value = itemValue.toFloat(),
                                         valueRange = min.toFloat()..max.toFloat(),

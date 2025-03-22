@@ -1,15 +1,27 @@
 package net.rpcs3.ui.settings.components.preference
 
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Refresh
-import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.text.KeyboardOptions
-import androidx.compose.material3.*
-import androidx.compose.runtime.*
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.Slider
+import androidx.compose.material3.SliderColors
+import androidx.compose.material3.SliderDefaults
+import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableFloatStateOf
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
-import androidx.compose.ui.tooling.preview.PreviewLightDark
 import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.tooling.preview.PreviewLightDark
 import androidx.compose.ui.unit.dp
 import net.rpcs3.ui.common.ComposePreview
 import net.rpcs3.ui.settings.components.core.PreferenceIcon
@@ -91,16 +103,18 @@ fun SliderPreference(
                         }
                     )
 
-                    Slider(
-                        value = tempValue,
-                        onValueChange = { newValue ->
-                            tempValue = newValue
-                            textValue = newValue.toInt().toString()
-                        },
-                        valueRange = valueRange,
-                        steps = steps,
-                        colors = sliderColors
-                    )
+                    if ((valueRange.endInclusive - valueRange.start) < 1000) {
+                        Slider(
+                            value = tempValue,
+                            onValueChange = { newValue ->
+                                tempValue = newValue
+                                textValue = newValue.toInt().toString()
+                            },
+                            valueRange = valueRange,
+                            steps = steps,
+                            colors = sliderColors
+                        )
+                    }
                 }
             },
             confirmButton = {
