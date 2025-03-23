@@ -271,7 +271,20 @@ class PadOverlay(context: Context?, attrs: AttributeSet?) : SurfaceView(context,
                 state.rightStickY
             )
 
-            if (!hit && (action == MotionEvent.ACTION_DOWN || action == MotionEvent.ACTION_POINTER_DOWN) && (y > buttonSize && x > buttonSize * 3)) {
+            val xInFloatingArea = x > buttonSize * 2 && x < totalWidth - buttonSize * 2
+            val yInFloatingArea = y > buttonSize && y < totalHeight - buttonSize
+            var inFloatingArea = xInFloatingArea && yInFloatingArea
+            if (!inFloatingArea && yInFloatingArea) {
+                if (x > buttonSize && x <= buttonSize * 2) {
+                    inFloatingArea = true
+                }
+
+                if (x <= totalWidth - buttonSize && x >= totalWidth - buttonSize * 2) {
+                    inFloatingArea = true
+                }
+            }
+
+            if (!hit && (action == MotionEvent.ACTION_DOWN || action == MotionEvent.ACTION_POINTER_DOWN) && inFloatingArea) {
                 val stickIndex = if (x <= totalWidth / 2) 0 else 1
                 val stick = if (stickIndex == 0) leftStick else rightStick
 

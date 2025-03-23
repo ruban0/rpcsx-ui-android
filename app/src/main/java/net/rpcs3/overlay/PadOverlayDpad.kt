@@ -123,7 +123,7 @@ class PadOverlayDpad(
                 val topDistance = y - area.top
                 val bottomDistance = area.bottom - y
                 val rightDistance = area.right - x
-                val distanceWidth = area.width() / 2.9
+                val distanceWidth = area.width() / 3.5
 
                 val left = leftDistance < distanceWidth
                 val right = !left && rightDistance < distanceWidth
