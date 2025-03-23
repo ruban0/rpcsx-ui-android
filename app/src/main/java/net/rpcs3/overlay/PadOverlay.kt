@@ -88,7 +88,7 @@ class PadOverlay(context: Context?, attrs: AttributeSet?) : SurfaceView(context,
         )
 
         triangleSquareCircleCross = createDpad(
-            btnAreaX, btnAreaY, (buttonSize * 2.6).toInt(), (buttonSize * 2.6).toInt(),
+            btnAreaX - buttonSize / 2, btnAreaY, buttonSize * 3, buttonSize * 3,
             buttonSize,
             buttonSize,
             1,
@@ -132,7 +132,12 @@ class PadOverlay(context: Context?, attrs: AttributeSet?) : SurfaceView(context,
             pressBit = Digital1Flags.CELL_PAD_CTRL_L3.bit
         )
         l3.alpha = idleAlpha
-        l3.setBounds(totalWidth / 2 - buttonSize * 2 - l3r3Size, (totalHeight - buttonSize * 2.3).toInt(), totalWidth / 2 - buttonSize * 2, totalHeight - (buttonSize * 2.3).toInt() + l3r3Size)
+        l3.setBounds(
+            totalWidth / 2 - buttonSize * 2 - l3r3Size,
+            (totalHeight - buttonSize * 2.3).toInt(),
+            totalWidth / 2 - buttonSize * 2,
+            totalHeight - (buttonSize * 2.3).toInt() + l3r3Size
+        )
 
         val r3 = PadOverlayStick(
             resources,
@@ -143,7 +148,12 @@ class PadOverlay(context: Context?, attrs: AttributeSet?) : SurfaceView(context,
             pressBit = Digital1Flags.CELL_PAD_CTRL_R3.bit
         )
         r3.alpha = idleAlpha
-        r3.setBounds(totalWidth / 2 + buttonSize * 2, totalHeight - (buttonSize * 2.3).toInt(), totalWidth / 2 + buttonSize * 2 + l3r3Size, totalHeight - (buttonSize * 2.3).toInt() + l3r3Size)
+        r3.setBounds(
+            totalWidth / 2 + buttonSize * 2,
+            totalHeight - (buttonSize * 2.3).toInt(),
+            totalWidth / 2 + buttonSize * 2 + l3r3Size,
+            totalHeight - (buttonSize * 2.3).toInt() + l3r3Size
+        )
 
         sticks += l3
         sticks += r3
@@ -217,7 +227,8 @@ class PadOverlay(context: Context?, attrs: AttributeSet?) : SurfaceView(context,
                 if (action == MotionEvent.ACTION_POINTER_DOWN || action == MotionEvent.ACTION_POINTER_UP) motionEvent.actionIndex else 0
             val x = motionEvent.getX(pointerIndex).toInt()
             val y = motionEvent.getY(pointerIndex).toInt()
-            val force = action == MotionEvent.ACTION_UP || action == MotionEvent.ACTION_POINTER_UP || action == MotionEvent.ACTION_CANCEL || action == MotionEvent.ACTION_MOVE
+            val force =
+                action == MotionEvent.ACTION_UP || action == MotionEvent.ACTION_POINTER_UP || action == MotionEvent.ACTION_CANCEL || action == MotionEvent.ACTION_MOVE
 
             if (force || dpad.contains(x, y)) {
                 hit = dpad.onTouch(motionEvent, pointerIndex, state)
