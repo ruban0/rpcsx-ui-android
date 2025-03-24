@@ -5,6 +5,7 @@ import android.graphics.BitmapFactory
 import android.graphics.Canvas
 import android.graphics.Rect
 import android.util.AttributeSet
+import android.util.Log
 import android.view.MotionEvent
 import android.view.SurfaceView
 import net.rpcs3.Digital1Flags
@@ -282,27 +283,29 @@ class PadOverlay(context: Context?, attrs: AttributeSet?) : SurfaceView(context,
                 state.rightStickY
             )
 
-            val xInFloatingArea = x > buttonSize * 2 && x < totalWidth - buttonSize * 2
-            val yInFloatingArea = y > buttonSize && y < totalHeight - buttonSize
-            var inFloatingArea = xInFloatingArea && yInFloatingArea
-            if (!inFloatingArea && yInFloatingArea) {
-                if (x > buttonSize && x <= buttonSize * 2) {
-                    inFloatingArea = true
+            if (!hit && (action == MotionEvent.ACTION_DOWN || action == MotionEvent.ACTION_POINTER_DOWN)) {
+                val xInFloatingArea = x > buttonSize * 2 && x < totalWidth - buttonSize * 2
+                val yInFloatingArea = y > buttonSize && y < totalHeight - buttonSize
+                var inFloatingArea = xInFloatingArea && yInFloatingArea
+                if (!inFloatingArea && yInFloatingArea) {
+                    if (x > buttonSize && x <= buttonSize * 2) {
+                        inFloatingArea = true
+                    }
+
+                    if (x <= totalWidth - buttonSize && x >= totalWidth - buttonSize * 2) {
+                        inFloatingArea = true
+                    }
                 }
 
-                if (x <= totalWidth - buttonSize && x >= totalWidth - buttonSize * 2) {
-                    inFloatingArea = true
-                }
-            }
+                if (inFloatingArea) {
+                    val stickIndex = if (x <= totalWidth / 2) 0 else 1
+                    val stick = if (stickIndex == 0) leftStick else rightStick
 
-            if (!hit && (action == MotionEvent.ACTION_DOWN || action == MotionEvent.ACTION_POINTER_DOWN) && inFloatingArea) {
-                val stickIndex = if (x <= totalWidth / 2) 0 else 1
-                val stick = if (stickIndex == 0) leftStick else rightStick
-
-                if (floatingSticks[stickIndex] == null && !sticks[stickIndex].isActive()) {
-                    floatingSticks[stickIndex] = stick
-                    stick.onAdd(motionEvent, pointerIndex)
-                    hit = true
+                    if (floatingSticks[stickIndex] == null && !sticks[stickIndex].isActive()) {
+                        floatingSticks[stickIndex] = stick
+                        stick.onAdd(motionEvent, pointerIndex)
+                        hit = true
+                    }
                 }
             }
 
