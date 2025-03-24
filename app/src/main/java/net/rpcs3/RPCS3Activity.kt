@@ -24,6 +24,8 @@ class RPCS3Activity : Activity() {
     private lateinit var binding: ActivityRpcs3Binding
     private lateinit var unregisterUsbEventListener: () -> Unit
     private var gamePadState: State = State()
+    private var usesAxisL2 = false
+    private var usesAxisR2 = false
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -74,8 +76,8 @@ class RPCS3Activity : Activity() {
             KeyEvent.KEYCODE_BUTTON_Y -> return Pair(Digital2Flags.CELL_PAD_CTRL_TRIANGLE.bit, 1)
             KeyEvent.KEYCODE_BUTTON_L1 -> return Pair(Digital2Flags.CELL_PAD_CTRL_L1.bit, 1)
             KeyEvent.KEYCODE_BUTTON_R1 -> return Pair(Digital2Flags.CELL_PAD_CTRL_R1.bit, 1)
-            KeyEvent.KEYCODE_BUTTON_L2 -> return Pair(Digital2Flags.CELL_PAD_CTRL_L2.bit, 1)
-            KeyEvent.KEYCODE_BUTTON_R2 -> return Pair(Digital2Flags.CELL_PAD_CTRL_R2.bit, 1)
+            KeyEvent.KEYCODE_BUTTON_L2 -> return if (usesAxisL2) Pair(0, 0) else Pair(Digital2Flags.CELL_PAD_CTRL_L2.bit, 1)
+            KeyEvent.KEYCODE_BUTTON_R2 -> return if (usesAxisR2) Pair(0, 0) else Pair(Digital2Flags.CELL_PAD_CTRL_R2.bit, 1)
             KeyEvent.KEYCODE_BUTTON_START -> return Pair(Digital1Flags.CELL_PAD_CTRL_START.bit, 0)
             KeyEvent.KEYCODE_BUTTON_SELECT -> return Pair(Digital1Flags.CELL_PAD_CTRL_SELECT.bit, 0)
             KeyEvent.KEYCODE_BUTTON_THUMBL -> return Pair(Digital1Flags.CELL_PAD_CTRL_L3.bit, 0)
@@ -118,6 +120,26 @@ class RPCS3Activity : Activity() {
     override fun onGenericMotionEvent(event: MotionEvent?): Boolean {
         if (event == null || event.source and InputDevice.SOURCE_JOYSTICK != InputDevice.SOURCE_JOYSTICK || event.action != MotionEvent.ACTION_MOVE) {
             return super.onGenericMotionEvent(event)
+        }
+
+        if (event.getAxisValue(MotionEvent.AXIS_LTRIGGER) > 0.1) {
+            gamePadState.digital[1] =
+                gamePadState.digital[1] or Digital2Flags.CELL_PAD_CTRL_L2.bit
+            usesAxisL2 = true
+        } else if (usesAxisL2) {
+            usesAxisL2 = false
+            gamePadState.digital[1] =
+                gamePadState.digital[1] and Digital2Flags.CELL_PAD_CTRL_L2.bit.inv()
+        }
+
+        if (event.getAxisValue(MotionEvent.AXIS_RTRIGGER) > 0.1) {
+            gamePadState.digital[1] =
+                gamePadState.digital[1] or Digital2Flags.CELL_PAD_CTRL_R2.bit
+            usesAxisR2 = true
+        } else if (usesAxisR2) {
+            usesAxisR2 = false
+            gamePadState.digital[1] =
+                gamePadState.digital[1] and Digital2Flags.CELL_PAD_CTRL_R2.bit.inv()
         }
 
         val dpadX = event.getAxisValue(MotionEvent.AXIS_HAT_X)
