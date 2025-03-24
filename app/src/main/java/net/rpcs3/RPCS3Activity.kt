@@ -2,28 +2,29 @@ package net.rpcs3
 
 import android.app.Activity
 import android.os.Bundle
+import android.util.Log
+import android.view.InputDevice
+import android.view.KeyEvent
+import android.view.MotionEvent
 import android.view.ViewGroup.MarginLayoutParams
 import android.view.WindowManager.LayoutParams.LAYOUT_IN_DISPLAY_CUTOUT_MODE_SHORT_EDGES
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.WindowInsetsControllerCompat
-import androidx.core.view.updateLayoutParams
-import android.util.Log
-import android.view.View
-import android.view.KeyEvent
-import android.view.MotionEvent
 import androidx.core.view.isInvisible
+import androidx.core.view.updateLayoutParams
 import net.rpcs3.databinding.ActivityRpcs3Binding
 import net.rpcs3.dialogs.AlertDialogQueue
 import net.rpcs3.overlay.State
 import kotlin.concurrent.thread
+import kotlin.math.abs
 
 class RPCS3Activity : Activity() {
     private lateinit var binding: ActivityRpcs3Binding
     private lateinit var unregisterUsbEventListener: () -> Unit
     private var gamePadState: State = State()
-  
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         binding = ActivityRpcs3Binding.inflate(layoutInflater)
@@ -32,8 +33,8 @@ class RPCS3Activity : Activity() {
         unregisterUsbEventListener = listenUsbEvents(this)
         enableFullScreenImmersive()
 
-        binding.oscToggle.setOnClickListener { 
-            binding.padOverlay.isInvisible = !binding.padOverlay.isInvisible 
+        binding.oscToggle.setOnClickListener {
+            binding.padOverlay.isInvisible = !binding.padOverlay.isInvisible
             binding.oscToggle.setImageResource(if (binding.padOverlay.isInvisible) R.drawable.ic_osc_off else R.drawable.ic_show_osc)
         }
 
@@ -61,65 +62,107 @@ class RPCS3Activity : Activity() {
         }
     }
 
-    override fun onKeyDown(keyCode: Int, event: KeyEvent?): Boolean {
+    private fun keyCodeToPadBit(keyCode: Int): Pair<Int, Int> {
         when (keyCode) {
-            KeyEvent.KEYCODE_DPAD_UP -> gamePadState.digital1 = gamePadState.digital1 or Digital1Flags.CELL_PAD_CTRL_UP.bit
-            KeyEvent.KEYCODE_DPAD_DOWN -> gamePadState.digital1 = gamePadState.digital1 or Digital1Flags.CELL_PAD_CTRL_DOWN.bit
-            KeyEvent.KEYCODE_DPAD_LEFT -> gamePadState.digital1 = gamePadState.digital1 or Digital1Flags.CELL_PAD_CTRL_LEFT.bit
-            KeyEvent.KEYCODE_DPAD_RIGHT -> gamePadState.digital1 = gamePadState.digital1 or Digital1Flags.CELL_PAD_CTRL_RIGHT.bit
-            KeyEvent.KEYCODE_BUTTON_A -> gamePadState.digital2 = gamePadState.digital2 or Digital2Flags.CELL_PAD_CTRL_CROSS.bit
-            KeyEvent.KEYCODE_BUTTON_B -> gamePadState.digital2 = gamePadState.digital2 or Digital2Flags.CELL_PAD_CTRL_CIRCLE.bit
-            KeyEvent.KEYCODE_BUTTON_X -> gamePadState.digital2 = gamePadState.digital2 or Digital2Flags.CELL_PAD_CTRL_SQUARE.bit
-            KeyEvent.KEYCODE_BUTTON_Y -> gamePadState.digital2 = gamePadState.digital2 or Digital2Flags.CELL_PAD_CTRL_TRIANGLE.bit
-            KeyEvent.KEYCODE_BUTTON_L1 -> gamePadState.digital2 = gamePadState.digital2 or Digital2Flags.CELL_PAD_CTRL_L1.bit
-            KeyEvent.KEYCODE_BUTTON_R1 -> gamePadState.digital2 = gamePadState.digital2 or Digital2Flags.CELL_PAD_CTRL_R1.bit
-            KeyEvent.KEYCODE_BUTTON_L2 -> gamePadState.digital2 = gamePadState.digital2 or Digital2Flags.CELL_PAD_CTRL_L2.bit
-            KeyEvent.KEYCODE_BUTTON_R2 -> gamePadState.digital2 = gamePadState.digital2 or Digital2Flags.CELL_PAD_CTRL_R2.bit
-            KeyEvent.KEYCODE_BUTTON_START -> gamePadState.digital1 = gamePadState.digital1 or Digital1Flags.CELL_PAD_CTRL_START.bit
-            KeyEvent.KEYCODE_BUTTON_SELECT -> gamePadState.digital1 = gamePadState.digital1 or Digital1Flags.CELL_PAD_CTRL_SELECT.bit
-            KeyEvent.KEYCODE_BUTTON_THUMBL -> gamePadState.digital1 = gamePadState.digital1 or Digital1Flags.CELL_PAD_CTRL_L3.bit
-            KeyEvent.KEYCODE_BUTTON_THUMBR -> gamePadState.digital1 = gamePadState.digital1 or Digital1Flags.CELL_PAD_CTRL_R3.bit
+            KeyEvent.KEYCODE_DPAD_UP -> return Pair(Digital1Flags.CELL_PAD_CTRL_UP.bit, 0)
+            KeyEvent.KEYCODE_DPAD_DOWN -> return Pair(Digital1Flags.CELL_PAD_CTRL_DOWN.bit, 0)
+            KeyEvent.KEYCODE_DPAD_LEFT -> return Pair(Digital1Flags.CELL_PAD_CTRL_LEFT.bit, 0)
+            KeyEvent.KEYCODE_DPAD_RIGHT -> return Pair(Digital1Flags.CELL_PAD_CTRL_RIGHT.bit, 0)
+            KeyEvent.KEYCODE_BUTTON_A -> return Pair(Digital2Flags.CELL_PAD_CTRL_CROSS.bit, 1)
+            KeyEvent.KEYCODE_BUTTON_B -> return Pair(Digital2Flags.CELL_PAD_CTRL_CIRCLE.bit, 1)
+            KeyEvent.KEYCODE_BUTTON_X -> return Pair(Digital2Flags.CELL_PAD_CTRL_SQUARE.bit, 1)
+            KeyEvent.KEYCODE_BUTTON_Y -> return Pair(Digital2Flags.CELL_PAD_CTRL_TRIANGLE.bit, 1)
+            KeyEvent.KEYCODE_BUTTON_L1 -> return Pair(Digital2Flags.CELL_PAD_CTRL_L1.bit, 1)
+            KeyEvent.KEYCODE_BUTTON_R1 -> return Pair(Digital2Flags.CELL_PAD_CTRL_R1.bit, 1)
+            KeyEvent.KEYCODE_BUTTON_L2 -> return Pair(Digital2Flags.CELL_PAD_CTRL_L2.bit, 1)
+            KeyEvent.KEYCODE_BUTTON_R2 -> return Pair(Digital2Flags.CELL_PAD_CTRL_R2.bit, 1)
+            KeyEvent.KEYCODE_BUTTON_START -> return Pair(Digital1Flags.CELL_PAD_CTRL_START.bit, 0)
+            KeyEvent.KEYCODE_BUTTON_SELECT -> return Pair(Digital1Flags.CELL_PAD_CTRL_SELECT.bit, 0)
+            KeyEvent.KEYCODE_BUTTON_THUMBL -> return Pair(Digital1Flags.CELL_PAD_CTRL_L3.bit, 0)
+            KeyEvent.KEYCODE_BUTTON_THUMBR -> return Pair(Digital1Flags.CELL_PAD_CTRL_R3.bit, 0)
         }
+
+        return Pair(0, 0)
+    }
+
+    override fun onKeyDown(keyCode: Int, event: KeyEvent?): Boolean {
+        if (event == null || (event.source and (InputDevice.SOURCE_GAMEPAD or InputDevice.SOURCE_JOYSTICK or InputDevice.SOURCE_DPAD)) == 0 || event.repeatCount != 0) {
+            return super.onKeyDown(keyCode, event)
+        }
+        val padBit = keyCodeToPadBit(keyCode)
+        if (padBit.first == 0) {
+            return super.onKeyDown(keyCode, event)
+        }
+
+        gamePadState.digital[padBit.second] = gamePadState.digital[padBit.second] or padBit.first
         sendGamepadData()
-        return super.onKeyDown(keyCode, event)
+        return true
     }
 
     override fun onKeyUp(keyCode: Int, event: KeyEvent?): Boolean {
-        when (keyCode) {
-            KeyEvent.KEYCODE_DPAD_UP -> gamePadState.digital1 = gamePadState.digital1 and Digital1Flags.CELL_PAD_CTRL_UP.bit.inv()
-            KeyEvent.KEYCODE_DPAD_DOWN -> gamePadState.digital1 = gamePadState.digital1 and Digital1Flags.CELL_PAD_CTRL_DOWN.bit.inv()
-            KeyEvent.KEYCODE_DPAD_LEFT -> gamePadState.digital1 = gamePadState.digital1 and Digital1Flags.CELL_PAD_CTRL_LEFT.bit.inv()
-            KeyEvent.KEYCODE_DPAD_RIGHT -> gamePadState.digital1 = gamePadState.digital1 and Digital1Flags.CELL_PAD_CTRL_RIGHT.bit.inv()
-            KeyEvent.KEYCODE_BUTTON_A -> gamePadState.digital2 = gamePadState.digital2 and Digital2Flags.CELL_PAD_CTRL_CROSS.bit.inv()
-            KeyEvent.KEYCODE_BUTTON_B -> gamePadState.digital2 = gamePadState.digital2 and Digital2Flags.CELL_PAD_CTRL_CIRCLE.bit.inv()
-            KeyEvent.KEYCODE_BUTTON_X -> gamePadState.digital2 = gamePadState.digital2 and Digital2Flags.CELL_PAD_CTRL_SQUARE.bit.inv()
-            KeyEvent.KEYCODE_BUTTON_Y -> gamePadState.digital2 = gamePadState.digital2 and Digital2Flags.CELL_PAD_CTRL_TRIANGLE.bit.inv()
-            KeyEvent.KEYCODE_BUTTON_L1 -> gamePadState.digital2 = gamePadState.digital2 and Digital2Flags.CELL_PAD_CTRL_L1.bit.inv()
-            KeyEvent.KEYCODE_BUTTON_R1 -> gamePadState.digital2 = gamePadState.digital2 and Digital2Flags.CELL_PAD_CTRL_R1.bit.inv()
-            KeyEvent.KEYCODE_BUTTON_L2 -> gamePadState.digital2 = gamePadState.digital2 and Digital2Flags.CELL_PAD_CTRL_L2.bit.inv()
-            KeyEvent.KEYCODE_BUTTON_R2 -> gamePadState.digital2 = gamePadState.digital2 and Digital2Flags.CELL_PAD_CTRL_R2.bit.inv()
-            KeyEvent.KEYCODE_BUTTON_START -> gamePadState.digital1 = gamePadState.digital1 and Digital1Flags.CELL_PAD_CTRL_START.bit.inv()
-            KeyEvent.KEYCODE_BUTTON_SELECT -> gamePadState.digital1 = gamePadState.digital1 and Digital1Flags.CELL_PAD_CTRL_SELECT.bit.inv()
-            KeyEvent.KEYCODE_BUTTON_THUMBL -> gamePadState.digital1 = gamePadState.digital1 and Digital1Flags.CELL_PAD_CTRL_L3.bit.inv()
-            KeyEvent.KEYCODE_BUTTON_THUMBR -> gamePadState.digital1 = gamePadState.digital1 and Digital1Flags.CELL_PAD_CTRL_R3.bit.inv()
+        if (event == null || event.source and (InputDevice.SOURCE_GAMEPAD or InputDevice.SOURCE_JOYSTICK or InputDevice.SOURCE_DPAD) == 0) {
+            return super.onKeyUp(keyCode, event)
         }
+
+        val padBit = keyCodeToPadBit(keyCode)
+        if (padBit.first == 0) {
+            return super.onKeyUp(keyCode, event)
+        }
+
+        gamePadState.digital[padBit.second] =
+            gamePadState.digital[padBit.second] and padBit.first.inv()
         sendGamepadData()
-        return super.onKeyUp(keyCode, event)
+        return true
     }
 
     override fun onGenericMotionEvent(event: MotionEvent?): Boolean {
-        event?.let {
-            gamePadState.leftStickX = (it.getAxisValue(MotionEvent.AXIS_X) * 127).toInt()
-            gamePadState.leftStickY = (it.getAxisValue(MotionEvent.AXIS_Y) * 127).toInt()
-            gamePadState.rightStickX = (it.getAxisValue(MotionEvent.AXIS_Z) * 127).toInt()
-            gamePadState.rightStickY = (it.getAxisValue(MotionEvent.AXIS_RZ) * 127).toInt()
+        if (event == null || event.source and InputDevice.SOURCE_JOYSTICK != InputDevice.SOURCE_JOYSTICK || event.action != MotionEvent.ACTION_MOVE) {
+            return super.onGenericMotionEvent(event)
         }
+
+        val dpadX = event.getAxisValue(MotionEvent.AXIS_HAT_X)
+        val dpadY = event.getAxisValue(MotionEvent.AXIS_HAT_Y)
+
+        gamePadState.digital[0] =
+            gamePadState.digital[0] and (Digital1Flags.CELL_PAD_CTRL_LEFT.bit or Digital1Flags.CELL_PAD_CTRL_RIGHT.bit or Digital1Flags.CELL_PAD_CTRL_UP.bit or Digital1Flags.CELL_PAD_CTRL_DOWN.bit).inv()
+        if (abs(dpadX) > 0.1f) {
+            if (dpadX < 0) {
+                gamePadState.digital[0] =
+                    gamePadState.digital[0] or Digital1Flags.CELL_PAD_CTRL_LEFT.bit
+            } else {
+                gamePadState.digital[0] =
+                    gamePadState.digital[0] or Digital1Flags.CELL_PAD_CTRL_RIGHT.bit
+            }
+        }
+
+        if (abs(dpadY) > 0.1f) {
+            if (dpadY < 0) {
+                gamePadState.digital[0] =
+                    gamePadState.digital[0] or Digital1Flags.CELL_PAD_CTRL_UP.bit
+            } else {
+                gamePadState.digital[0] =
+                    gamePadState.digital[0] or Digital1Flags.CELL_PAD_CTRL_DOWN.bit
+            }
+        }
+
+        gamePadState.leftStickX = (event.getAxisValue(MotionEvent.AXIS_X) * 127 + 128).toInt()
+        gamePadState.leftStickY = (event.getAxisValue(MotionEvent.AXIS_Y) * 127 + 128).toInt()
+        gamePadState.rightStickX = (event.getAxisValue(MotionEvent.AXIS_Z) * 127 + 128).toInt()
+        gamePadState.rightStickY = (event.getAxisValue(MotionEvent.AXIS_RZ) * 127 + 128).toInt()
+
         sendGamepadData()
-        return super.onGenericMotionEvent(event)
+        return true
     }
 
     private fun sendGamepadData() {
-        RPCS3.instance.overlayPadData(gamePadState.digital1, gamePadState.digital2, gamePadState.leftStickX, gamePadState.leftStickY, gamePadState.rightStickX, gamePadState.rightStickY)
+        RPCS3.instance.overlayPadData(
+            gamePadState.digital[0],
+            gamePadState.digital[1],
+            gamePadState.leftStickX,
+            gamePadState.leftStickY,
+            gamePadState.rightStickX,
+            gamePadState.rightStickY
+        )
     }
 
     override fun onDestroy() {
@@ -133,7 +176,8 @@ class RPCS3Activity : Activity() {
             val insetsController = WindowInsetsControllerCompat(this, decorView)
             insetsController.apply {
                 hide(WindowInsetsCompat.Type.systemBars())
-                systemBarsBehavior = WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
+                systemBarsBehavior =
+                    WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
             }
             attributes.layoutInDisplayCutoutMode = LAYOUT_IN_DISPLAY_CUTOUT_MODE_SHORT_EDGES
         }
