@@ -101,8 +101,8 @@ class PadOverlayStick(
                 y = bgR * sin(L)
             }
 
-            val stickX = ((x / bgR) * 128 + 127).toInt()
-            val stickY = ((y / bgR) * 128 + 127).toInt()
+            val stickX = ((x / bgR) * 127 + 128).toInt()
+            val stickY = ((y / bgR) * 127 + 128).toInt()
 
             if (isLeft) {
                 padState.leftStickX = stickX
