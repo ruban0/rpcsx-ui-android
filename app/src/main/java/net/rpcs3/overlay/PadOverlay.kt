@@ -1,18 +1,23 @@
 package net.rpcs3.overlay
 
 import android.content.Context
+import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import android.graphics.Canvas
 import android.graphics.Rect
+import android.graphics.drawable.BitmapDrawable
+import android.graphics.drawable.VectorDrawable
 import android.util.AttributeSet
-import android.util.Log
 import android.view.MotionEvent
 import android.view.SurfaceView
+import androidx.core.content.ContextCompat
+import androidx.core.graphics.drawable.toBitmap
 import net.rpcs3.Digital1Flags
 import net.rpcs3.Digital2Flags
 import net.rpcs3.R
 import net.rpcs3.RPCS3
 import kotlin.math.min
+
 
 private const val idleAlpha = (0.3 * 255).toInt()
 
@@ -71,6 +76,9 @@ class PadOverlay(context: Context?, attrs: AttributeSet?) : SurfaceView(context,
 
         val btnR1X = btnR2X
         val btnR1Y = btnR2Y + buttonSize + buttonSize / 2
+
+        val btnHomeX = totalWidth / 2 -  buttonSize / 2
+        val btnHomeY = btnStartY + (startSelectSize - buttonSize) / 2
 
         dpad = createDpad(
             dpadAreaX, dpadAreaY, dpadW, dpadH,
@@ -179,6 +187,15 @@ class PadOverlay(context: Context?, attrs: AttributeSet?) : SurfaceView(context,
                 Digital2Flags.None
             ),
 
+            createButton(
+                R.drawable.ic_rpcs3_foreground,
+                btnHomeX,
+                btnHomeY,
+                buttonSize,
+                buttonSize,
+                Digital1Flags.CELL_PAD_CTRL_PS,
+                Digital2Flags.None
+            ),
             createButton(
                 R.drawable.l1,
                 btnL1X,
@@ -326,6 +343,22 @@ class PadOverlay(context: Context?, attrs: AttributeSet?) : SurfaceView(context,
         floatingSticks.forEach { it?.draw(canvas) }
     }
 
+    private fun getBitmap(resourceId: Int, width: Int, height: Int): Bitmap {
+        return when (val drawable = ContextCompat.getDrawable(context, resourceId)) {
+            is BitmapDrawable -> {
+                BitmapFactory.decodeResource(context.resources, resourceId)
+            }
+
+            is VectorDrawable -> {
+                drawable.toBitmap(width, height)
+            }
+
+            else -> {
+                throw IllegalArgumentException("unexpected drawable type")
+            }
+        }
+    }
+
     private fun createButton(
         resourceId: Int,
         x: Int,
@@ -335,8 +368,7 @@ class PadOverlay(context: Context?, attrs: AttributeSet?) : SurfaceView(context,
         digital1: Digital1Flags,
         digital2: Digital2Flags
     ): PadOverlayButton {
-        val resources = context!!.resources
-        val bitmap = BitmapFactory.decodeResource(resources, resourceId)
+        val bitmap = getBitmap(resourceId, width, height)
         val result = PadOverlayButton(resources, bitmap, digital1.bit, digital2.bit)
         result.setBounds(x, y, x + width, y + height)
         result.alpha = idleAlpha
