@@ -7,11 +7,11 @@ plugins {
 }
 
 android {
-    namespace = "net.rpcs3"
+    namespace = "net.rpcsx"
     compileSdk = 35
 
     defaultConfig {
-        applicationId = "net.rpcs3"
+        applicationId = "net.rpcsx"
         minSdk = 31
         targetSdk = 35
         versionCode = 1
@@ -106,7 +106,7 @@ android {
     }
 }
 
-base.archivesName = "rpcs3"
+base.archivesName = "rpcsx"
 
 dependencies {
     implementation(libs.androidx.navigation.compose)

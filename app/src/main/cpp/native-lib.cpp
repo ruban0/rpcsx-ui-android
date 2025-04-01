@@ -1608,7 +1608,7 @@ static bool initVirtualPad(const std::shared_ptr<Pad> &pad) {
   return true;
 }
 
-extern "C" JNIEXPORT jboolean JNICALL Java_net_rpcs3_RPCS3_overlayPadData(
+extern "C" JNIEXPORT jboolean JNICALL Java_net_rpcsx_RPCSX_overlayPadData(
     JNIEnv *env, jobject, jint digital1, jint digital2, jint leftStickX,
     jint leftStickY, jint rightStickX, jint rightStickY) {
 
@@ -1648,7 +1648,7 @@ extern "C" JNIEXPORT jboolean JNICALL Java_net_rpcs3_RPCS3_overlayPadData(
 }
 
 extern "C" JNIEXPORT jboolean JNICALL
-Java_net_rpcs3_RPCS3_initialize(JNIEnv *env, jobject, jstring rootDir) {
+Java_net_rpcsx_RPCSX_initialize(JNIEnv *env, jobject, jstring rootDir) {
   auto rootDirStr = fix_dir_path(unwrap(env, rootDir));
 
   if (g_android_executable_dir != rootDirStr) {
@@ -1757,18 +1757,18 @@ Java_net_rpcs3_RPCS3_initialize(JNIEnv *env, jobject, jstring rootDir) {
 }
 
 extern "C" JNIEXPORT jboolean JNICALL
-Java_net_rpcs3_RPCS3_processCompilationQueue(JNIEnv *env, jobject) {
+Java_net_rpcsx_RPCSX_processCompilationQueue(JNIEnv *env, jobject) {
   g_compilationQueue.process(env);
   return true;
 }
 
 extern "C" JNIEXPORT jboolean JNICALL
-Java_net_rpcs3_RPCS3_startMainThreadProcessor(JNIEnv *env, jobject) {
+Java_net_rpcsx_RPCSX_startMainThreadProcessor(JNIEnv *env, jobject) {
   g_mainThreadProcessor.process(env);
   return true;
 }
 
-extern "C" JNIEXPORT jboolean JNICALL Java_net_rpcs3_RPCS3_collectGameInfo(
+extern "C" JNIEXPORT jboolean JNICALL Java_net_rpcsx_RPCSX_collectGameInfo(
     JNIEnv *env, jobject, jstring jrootDir, jlong progressId) {
 
   if (std::filesystem::is_regular_file(g_cfg_vfs.get_dev_flash() +
@@ -1780,12 +1780,12 @@ extern "C" JNIEXPORT jboolean JNICALL Java_net_rpcs3_RPCS3_collectGameInfo(
   return true;
 }
 
-extern "C" JNIEXPORT void JNICALL Java_net_rpcs3_RPCS3_shutdown(JNIEnv *env,
+extern "C" JNIEXPORT void JNICALL Java_net_rpcsx_RPCSX_shutdown(JNIEnv *env,
                                                                 jobject) {
   Emu.Kill();
 }
 
-extern "C" JNIEXPORT jint JNICALL Java_net_rpcs3_RPCS3_boot(JNIEnv *env,
+extern "C" JNIEXPORT jint JNICALL Java_net_rpcsx_RPCSX_boot(JNIEnv *env,
                                                             jobject,
                                                             jstring jpath) {
   Emu.SetForceBoot(true);
@@ -1797,22 +1797,22 @@ extern "C" JNIEXPORT jint JNICALL Java_net_rpcs3_RPCS3_boot(JNIEnv *env,
   return static_cast<int>(Emu.BootGame(path, "", false, cfg_mode::global));
 }
 
-extern "C" JNIEXPORT jint JNICALL Java_net_rpcs3_RPCS3_getState(JNIEnv *env,
+extern "C" JNIEXPORT jint JNICALL Java_net_rpcsx_RPCSX_getState(JNIEnv *env,
                                                                 jobject) {
   return static_cast<int>(Emu.GetStatus(false));
 }
 
-extern "C" JNIEXPORT void JNICALL Java_net_rpcs3_RPCS3_kill(JNIEnv *env,
+extern "C" JNIEXPORT void JNICALL Java_net_rpcsx_RPCSX_kill(JNIEnv *env,
                                                             jobject) {
   Emu.Kill();
 }
 
-extern "C" JNIEXPORT void JNICALL Java_net_rpcs3_RPCS3_resume(JNIEnv *env,
+extern "C" JNIEXPORT void JNICALL Java_net_rpcsx_RPCSX_resume(JNIEnv *env,
                                                               jobject) {
     Emu.Resume();
 }
 
-extern "C" JNIEXPORT void JNICALL Java_net_rpcs3_RPCS3_openHomeMenu(JNIEnv *env,
+extern "C" JNIEXPORT void JNICALL Java_net_rpcsx_RPCSX_openHomeMenu(JNIEnv *env,
                                                                     jobject) {
   if (auto padThread = pad::get_pad_thread(true)) {
     padThread->open_home_menu();
@@ -1820,11 +1820,11 @@ extern "C" JNIEXPORT void JNICALL Java_net_rpcs3_RPCS3_openHomeMenu(JNIEnv *env,
 }
 
 extern "C" JNIEXPORT jstring JNICALL
-Java_net_rpcs3_RPCS3_getTitleId(JNIEnv *env, jobject) {
+Java_net_rpcsx_RPCSX_getTitleId(JNIEnv *env, jobject) {
   return wrap(env, Emu.GetTitleID());
 }
 
-extern "C" JNIEXPORT jboolean JNICALL Java_net_rpcs3_RPCS3_surfaceEvent(
+extern "C" JNIEXPORT jboolean JNICALL Java_net_rpcsx_RPCSX_surfaceEvent(
     JNIEnv *env, jobject, jobject surface, jint event) {
   rpcs3_android.warning("surface event %p, %d", surface, event);
 
@@ -1866,7 +1866,7 @@ extern "C" JNIEXPORT jboolean JNICALL Java_net_rpcs3_RPCS3_surfaceEvent(
   return true;
 }
 
-extern "C" JNIEXPORT jboolean JNICALL Java_net_rpcs3_RPCS3_usbDeviceEvent(
+extern "C" JNIEXPORT jboolean JNICALL Java_net_rpcsx_RPCSX_usbDeviceEvent(
     JNIEnv *env, jobject, jint fd, jint vendorId, jint productId, jint event) {
   rpcs3_android.warning(
       "usb device event %d fd: %d, vendorId: %d, productId: %d", event, fd,
@@ -2381,13 +2381,13 @@ static bool installIso(JNIEnv *env, fs::file &&file, jlong progressId) {
   return true;
 }
 
-extern "C" JNIEXPORT jboolean JNICALL Java_net_rpcs3_RPCS3_installFw(
+extern "C" JNIEXPORT jboolean JNICALL Java_net_rpcsx_RPCSX_installFw(
     JNIEnv *env, jobject, jint fd, jlong progressId) {
   return installPup(env, fs::file::from_native_handle(fd), progressId);
 }
 
 extern "C" JNIEXPORT jboolean JNICALL
-Java_net_rpcs3_RPCS3_isInstallableFile(JNIEnv *env, jobject, jint fd) {
+Java_net_rpcsx_RPCSX_isInstallableFile(JNIEnv *env, jobject, jint fd) {
   auto file = fs::file::from_native_handle(fd);
   AtExit atExit{[&] { file.release_handle(); }};
 
@@ -2397,7 +2397,7 @@ Java_net_rpcs3_RPCS3_isInstallableFile(JNIEnv *env, jobject, jint fd) {
 }
 
 extern "C" JNIEXPORT jstring JNICALL
-Java_net_rpcs3_RPCS3_getDirInstallPath(JNIEnv *env, jobject, jint fd) {
+Java_net_rpcsx_RPCSX_getDirInstallPath(JNIEnv *env, jobject, jint fd) {
   auto file = fs::file::from_native_handle(fd);
   AtExit atExit{[&] { file.release_handle(); }};
 
@@ -2410,7 +2410,7 @@ Java_net_rpcs3_RPCS3_getDirInstallPath(JNIEnv *env, jobject, jint fd) {
 }
 
 extern "C" JNIEXPORT jboolean JNICALL
-Java_net_rpcs3_RPCS3_install(JNIEnv *env, jobject, jint fd, jlong progressId) {
+Java_net_rpcsx_RPCSX_install(JNIEnv *env, jobject, jint fd, jlong progressId) {
   auto file = fs::file::from_native_handle(fd);
   AtExit atExit{[&] { file.release_handle(); }};
 
@@ -2444,7 +2444,7 @@ Java_net_rpcs3_RPCS3_install(JNIEnv *env, jobject, jint fd, jlong progressId) {
   return true;
 }
 
-extern "C" JNIEXPORT jboolean JNICALL Java_net_rpcs3_RPCS3_installKey(
+extern "C" JNIEXPORT jboolean JNICALL Java_net_rpcsx_RPCSX_installKey(
     JNIEnv *env, jobject, jint fd, jlong progressId, jstring gamePath) {
   auto file = fs::file::from_native_handle(fd);
   AtExit atExit{[&] { file.release_handle(); }};
@@ -2465,7 +2465,7 @@ extern "C" JNIEXPORT jboolean JNICALL Java_net_rpcs3_RPCS3_installKey(
 }
 
 extern "C" JNIEXPORT jstring JNICALL
-Java_net_rpcs3_RPCS3_systemInfo(JNIEnv *env, jobject) {
+Java_net_rpcsx_RPCSX_systemInfo(JNIEnv *env, jobject) {
   std::string result;
 
   fmt::append(result, "%s\n\nLLVM CPU: %s\n\n", utils::get_system_info(), fallback_cpu_detection());
@@ -2528,7 +2528,7 @@ static cfg::_base *find_cfg_node(cfg::_base *root, std::string_view path) {
 }
 
 extern "C" JNIEXPORT jstring JNICALL
-Java_net_rpcs3_RPCS3_settingsGet(JNIEnv *env, jobject, jstring jpath) {
+Java_net_rpcsx_RPCSX_settingsGet(JNIEnv *env, jobject, jstring jpath) {
   auto root = find_cfg_node(&g_cfg, unwrap(env, jpath));
 
   if (root == nullptr) {
@@ -2538,7 +2538,7 @@ Java_net_rpcs3_RPCS3_settingsGet(JNIEnv *env, jobject, jstring jpath) {
   return wrap(env, root->to_json().dump(4));
 }
 
-extern "C" JNIEXPORT jboolean JNICALL Java_net_rpcs3_RPCS3_settingsSet(
+extern "C" JNIEXPORT jboolean JNICALL Java_net_rpcsx_RPCSX_settingsSet(
     JNIEnv *env, jobject, jstring jpath, jstring jvalue) {
   nlohmann::json value;
   try {
@@ -2567,7 +2567,7 @@ extern "C" JNIEXPORT jboolean JNICALL Java_net_rpcs3_RPCS3_settingsSet(
 }
 
 extern "C" JNIEXPORT jboolean JNICALL
-Java_net_rpcs3_RPCS3_supportsCustomDriverLoading(JNIEnv *env,
+Java_net_rpcsx_RPCSX_supportsCustomDriverLoading(JNIEnv *env,
                                                  jobject instance) {
   return access("/dev/kgsl-3d0", F_OK) == 0;
 }

@@ -6,14 +6,14 @@
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:keepScreenOn="true"
-    tools:context=".RPCS3Activity">
+    tools:context=".RPCSXActivity">
 
-    <net.rpcs3.GraphicsFrame
+    <net.rpcsx.GraphicsFrame
         android:id="@+id/surfaceView"
         android:layout_width="match_parent"
         android:layout_height="match_parent" />
 
-    <net.rpcs3.overlay.PadOverlay
+    <net.rpcsx.overlay.PadOverlay
         android:id="@+id/padOverlay"
         android:layout_width="match_parent"
         android:layout_height="match_parent" />

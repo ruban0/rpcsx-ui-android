@@ -19,5 +19,5 @@ dependencyResolutionManagement {
     }
 }
 
-rootProject.name = "RPCS3"
+rootProject.name = "RPCSX"
 include(":app")
