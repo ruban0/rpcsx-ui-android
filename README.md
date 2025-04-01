@@ -1,10 +1,10 @@
 <div align="center">
 
-# RPCS3-Android
+# RPCSX-UI-Android
 
-*An experimental [RPCS3](https://github.com/RPCS3/rpcs3) emulator port to Android*
+*An experimental native Android native UI for RPCSX emulator*
 
-[![](https://img.shields.io/discord/1346565616336896091?color=5865F2&logo=discord&logoColor=white)](https://discord.gg/3PprUAVjfr)
+[![](https://img.shields.io/discord/252023769500090368?color=5865F2&logo=discord&logoColor=white)](https://discord.gg/t6dzA4wUdG)
 
 </div>
 
@@ -13,7 +13,7 @@
 
 ## Contributing
 
-If you want to contribute as a developer, please contact us in the [Discord](https://discord.gg/3PprUAVjfr)
+If you want to contribute as a developer, please contact us in the [Discord](https://discord.gg/t6dzA4wUdG)
 
 ## Requirements
 
@@ -22,6 +22,5 @@ Android 12+
 
 ## License
 
-RPCS3-Android is licensed under GPLv2 license except directories containing their own LICENSE file, or files containing their own license.
-
+RPCSX-UI-Android is licensed under GPLv2 license except directories containing their own LICENSE file, or files containing their own license.
 
