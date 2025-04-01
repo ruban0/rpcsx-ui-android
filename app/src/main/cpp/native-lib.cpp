@@ -588,7 +588,7 @@ class Progress {
 public:
   Progress(JNIEnv *env, jlong progressId) : env(env), progressId(progressId) {
     progressRepositoryClass =
-        ensure(env->FindClass("net/rpcs3/ProgressRepository"));
+        ensure(env->FindClass("net/rpcsx/ProgressRepository"));
     onProgressEventMethodId = env->GetStaticMethodID(
         progressRepositoryClass, "onProgressEvent", "(JJJLjava/lang/String;)Z");
   }
@@ -611,7 +611,7 @@ public:
 
 static void sendFirmwareInstalled(JNIEnv *env, std::string version) {
   auto fwRepositoryClass =
-      ensure(env->FindClass("net/rpcs3/FirmwareRepository"));
+      ensure(env->FindClass("net/rpcsx/FirmwareRepository"));
   auto methodId = ensure(env->GetStaticMethodID(
       fwRepositoryClass, "onFirmwareInstalled", "(Ljava/lang/String;)V"));
 
@@ -620,7 +620,7 @@ static void sendFirmwareInstalled(JNIEnv *env, std::string version) {
 
 static void sendFirmwareCompiled(JNIEnv *env, std::string version) {
   auto fwRepositoryClass =
-      ensure(env->FindClass("net/rpcs3/FirmwareRepository"));
+      ensure(env->FindClass("net/rpcsx/FirmwareRepository"));
   auto methodId = ensure(env->GetStaticMethodID(
       fwRepositoryClass, "onFirmwareCompiled", "(Ljava/lang/String;)V"));
 
@@ -629,10 +629,10 @@ static void sendFirmwareCompiled(JNIEnv *env, std::string version) {
 
 static void sendGameInfo(JNIEnv *env, jlong progressId,
                          std::span<const GameInfo> infos) {
-  auto gameRepositoryClass = ensure(env->FindClass("net/rpcs3/GameRepository"));
+  auto gameRepositoryClass = ensure(env->FindClass("net/rpcsx/GameRepository"));
   auto addMethodId = ensure(env->GetStaticMethodID(
-      gameRepositoryClass, "add", "([Lnet/rpcs3/GameInfo;J)V"));
-  auto gameClass = ensure(env->FindClass("net/rpcs3/GameInfo"));
+      gameRepositoryClass, "add", "([Lnet/rpcsx/GameInfo;J)V"));
+  auto gameClass = ensure(env->FindClass("net/rpcsx/GameInfo"));
 
   jmethodID gameConstructor = ensure(env->GetMethodID(
       gameClass, "<init>",
