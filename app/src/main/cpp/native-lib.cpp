@@ -93,7 +93,7 @@ static std::shared_ptr<Pad> g_virtual_pad;
 std::string g_input_config_override;
 cfg_input_configurations g_cfg_input_configs;
 
-LOG_CHANNEL(rpcs3_android, "ANDROID");
+LOG_CHANNEL(rpcsx_android, "ANDROID");
 
 struct LogListener : logs::listener {
   LogListener() { logs::listener::add(this); }
@@ -835,7 +835,7 @@ fetchGameInfo(const psf::registry &psf,
 
     if (isLocked) {
       flags |= kGameFlagLocked;
-      rpcs3_android.warning("game %s is locked", path);
+      rpcsx_android.warning("game %s is locked", path);
     }
 
     auto c00Path = path + "/C00";
@@ -845,7 +845,7 @@ fetchGameInfo(const psf::registry &psf,
     if (isTrial) {
       if (!tryUnlockGame(psf)) {
         flags |= kGameFlagTrial;
-        rpcs3_android.warning("game %s is trial", path);
+        rpcsx_android.warning("game %s is trial", path);
       } else {
         auto c00IconPath = c00Path + "/ICON0.PNG";
         if (std::filesystem::is_regular_file(c00IconPath)) {
@@ -877,10 +877,10 @@ static void collectGameInfo(JNIEnv *env, jlong progressId,
   for (auto &&rootDir : rootDirs) {
     collectGamePaths(paths, rootDir);
 
-    rpcs3_android.notice("collectGameInfo: processed %s", rootDir);
+    rpcsx_android.notice("collectGameInfo: processed %s", rootDir);
   }
 
-  rpcs3_android.notice("collectGameInfo: found %d paths", paths.size());
+  rpcsx_android.notice("collectGameInfo: found %d paths", paths.size());
 
   Progress progress(env, progressId);
   progress.report(0, paths.size());
@@ -908,7 +908,7 @@ static void collectGameInfo(JNIEnv *env, jlong progressId,
 
     const auto psf = psf::load_object(path + "/PARAM.SFO");
 
-    rpcs3_android.notice("collectGameInfo: sfo at %s", path);
+    rpcsx_android.notice("collectGameInfo: sfo at %s", path);
 
     if (auto gameInfo = fetchGameInfo(psf, path)) {
       gameInfos.push_back(std::move(*gameInfo));
@@ -989,7 +989,7 @@ struct ProgressMessageDialog : MsgDialogBase {
   ProgressMessageDialog(jlong progressId) : progressId(progressId) {}
 
   void Create(const std::string &msg, const std::string &title) override {
-    rpcs3_android.warning("ProgressMessageDialog::Create(%s, %s)", msg, title);
+    rpcsx_android.warning("ProgressMessageDialog::Create(%s, %s)", msg, title);
     max = 100;
     invokeSync([this, &msg](JNIEnv *env) {
       Progress progress(env, progressId);
@@ -1002,7 +1002,7 @@ struct ProgressMessageDialog : MsgDialogBase {
   }
 
   void Close(bool success) override {
-    rpcs3_android.warning("ProgressMessageDialog::Close(%s)", success);
+    rpcsx_android.warning("ProgressMessageDialog::Close(%s)", success);
     invokeSync([this, success](JNIEnv *env) {
       Progress progress(env, progressId);
       progress.report(0, 0);
@@ -1018,7 +1018,7 @@ struct ProgressMessageDialog : MsgDialogBase {
   }
 
   void SetMsg(const std::string &msg) override {
-    rpcs3_android.warning("ProgressMessageDialog::SetMsg(%s)", msg);
+    rpcsx_android.warning("ProgressMessageDialog::SetMsg(%s)", msg);
     invokeSync([this, msg](JNIEnv *env) {
       Progress(env, progressId).report(getValue(), max, msg);
     });
@@ -1026,7 +1026,7 @@ struct ProgressMessageDialog : MsgDialogBase {
 
   void ProgressBarSetMsg(u32 progressBarIndex,
                          const std::string &msg) override {
-    rpcs3_android.warning("ProgressMessageDialog::ProgressBarSetMsg(%d, %s)",
+    rpcsx_android.warning("ProgressMessageDialog::ProgressBarSetMsg(%d, %s)",
                           progressBarIndex, msg);
     if (progressBarIndex != 0) {
       report_fatal_error("Unexpected progress index in progress dialog");
@@ -1038,7 +1038,7 @@ struct ProgressMessageDialog : MsgDialogBase {
   }
 
   void ProgressBarReset(u32 progressBarIndex) override {
-    rpcs3_android.warning("ProgressMessageDialog::ProgressBarReset(%d)",
+    rpcsx_android.warning("ProgressMessageDialog::ProgressBarReset(%d)",
                           progressBarIndex);
 
     if (progressBarIndex != 0) {
@@ -1051,7 +1051,7 @@ struct ProgressMessageDialog : MsgDialogBase {
   }
 
   void ProgressBarInc(u32 progressBarIndex, u32 delta) override {
-    rpcs3_android.warning("ProgressMessageDialog::ProgressBarInc(%d, %d)",
+    rpcsx_android.warning("ProgressMessageDialog::ProgressBarInc(%d, %d)",
                           progressBarIndex, delta);
 
     if (progressBarIndex != 0) {
@@ -1066,7 +1066,7 @@ struct ProgressMessageDialog : MsgDialogBase {
   }
 
   void ProgressBarSetValue(u32 progressBarIndex, u32 value) override {
-    rpcs3_android.warning("ProgressMessageDialog::ProgressBarSetValue(%d, %d)",
+    rpcsx_android.warning("ProgressMessageDialog::ProgressBarSetValue(%d, %d)",
                           progressBarIndex, value);
 
     if (progressBarIndex != 0) {
@@ -1080,7 +1080,7 @@ struct ProgressMessageDialog : MsgDialogBase {
     });
   }
   void ProgressBarSetLimit(u32 index, u32 limit) override {
-    rpcs3_android.warning("ProgressMessageDialog::ProgressBarSetLimit(%d, %d)",
+    rpcsx_android.warning("ProgressMessageDialog::ProgressBarSetLimit(%d, %d)",
                           index, limit);
 
     if (index != 0) {
@@ -1115,7 +1115,7 @@ struct MessageDialog : MsgDialogBase {
   void Create(const std::string &msg, const std::string &title) override {
     auto progressId = s_pendingProgressId.load();
 
-    rpcs3_android.warning("MessageDialog::Create(%s, %s): source %s, id %d",
+    rpcsx_android.warning("MessageDialog::Create(%s, %s): source %s, id %d",
                           msg, title, source, progressId);
 
     if (progressId != -1) {
@@ -1175,7 +1175,7 @@ struct OverlaySaveDialog : SaveDialogBase {
   s32 ShowSaveDataList(std::vector<SaveDataEntry> &save_entries, s32 focused,
                        u32 op, vm::ptr<CellSaveDataListSet> listSet,
                        bool enable_overlay) override {
-    rpcs3_android.notice("ShowSaveDataList(save_entries=%d, focused=%d, "
+    rpcsx_android.notice("ShowSaveDataList(save_entries=%d, focused=%d, "
                          "op=0x%x, listSet=*0x%x, enable_overlay=%d)",
                          save_entries.size(), focused, op, listSet,
                          enable_overlay);
@@ -1189,26 +1189,26 @@ struct OverlaySaveDialog : SaveDialogBase {
     });
 
     if (!use_end) {
-      rpcs3_android.error(
+      rpcsx_android.error(
           "ShowSaveDataList(): Not able to notify DRAWING_BEGIN callback "
           "because one has already been sent!");
     }
 
     if (auto manager = g_fxo->try_get<rsx::overlays::display_manager>()) {
-      rpcs3_android.notice("ShowSaveDataList: Showing native UI dialog");
+      rpcsx_android.notice("ShowSaveDataList: Showing native UI dialog");
 
       s32 result = manager->create<rsx::overlays::save_dialog>()->show(
           save_entries, focused, op, listSet, enable_overlay);
 
       if (result != rsx::overlays::user_interface::selection_code::error) {
-        rpcs3_android.notice(
+        rpcsx_android.notice(
             "ShowSaveDataList: Native UI dialog returned with selection %d",
             result);
 
         return result;
       }
 
-      rpcs3_android.error("ShowSaveDataList: Native UI dialog returned error");
+      rpcsx_android.error("ShowSaveDataList: Native UI dialog returned error");
     }
 
     return -2;
@@ -1295,7 +1295,7 @@ private:
       return;
     }
 
-    rpcs3_android.error("Creating cache initiated, state %d",
+    rpcsx_android.error("Creating cache initiated, state %d",
                         (int)Emu.GetStatus(false));
 
     while (true) {
@@ -1305,7 +1305,7 @@ private:
         break;
       }
 
-      rpcs3_android.error("Creating cache wait, state %d", (int)state);
+      rpcsx_android.error("Creating cache wait, state %d", (int)state);
       std::this_thread::sleep_for(std::chrono::seconds(1));
     }
 
@@ -1339,17 +1339,17 @@ private:
 
         if (!sfoPath.empty()) {
           const auto psf = psf::load_object(sfoPath);
-          rpcs3_android.warning("title id is %s",
+          rpcsx_android.warning("title id is %s",
                                 psf::get_string(psf, "TITLE_ID"));
 
           Emu.SetTitleID(std::string(psf::get_string(psf, "TITLE_ID")));
         } else {
-          rpcs3_android.warning("param.sfo not found");
+          rpcsx_android.warning("param.sfo not found");
         }
       }
 
       // Compile binary first
-      rpcs3_android.notice("Trying to load binary: %s", workload.path);
+      rpcsx_android.notice("Trying to load binary: %s", workload.path);
 
       fs::file src{workload.path};
       src = decrypt_self(src);
@@ -1359,7 +1359,7 @@ private:
       if (obj == elf_error::ok && ppu_load_exec(obj, true, workload.path)) {
         _main.path = workload.path;
       } else {
-        rpcs3_android.error("Failed to load binary '%s' (%s)", workload.path,
+        rpcsx_android.error("Failed to load binary '%s' (%s)", workload.path,
                             obj.get_error());
       }
     }
@@ -1374,7 +1374,7 @@ private:
     }
 
     std::vector<ppu_module<lv2_obj> *> mod_list;
-    rpcs3_android.error("Going to analyze executable");
+    rpcsx_android.error("Going to analyze executable");
 
     // FIXME: split states
     if (!is_vsh) {
@@ -1382,7 +1382,7 @@ private:
                         _main.applied_patches, std::vector<u32>{})) {
         Emu.ConfigurePPUCache();
         Emu.SetTestMode();
-        rpcs3_android.error("Going to precompile main PPU module");
+        rpcsx_android.error("Going to precompile main PPU module");
         ppu_initialize(_main);
         mod_list.emplace_back(&_main);
       }
@@ -1390,7 +1390,7 @@ private:
 
     ppu_precompile(dir_queue, mod_list.empty() ? nullptr : &mod_list);
 
-    rpcs3_android.error("Finalization");
+    rpcsx_android.error("Finalization");
     g_fxo->reset();
     Emu.SetState(system_state::stopped);
 
@@ -1475,7 +1475,7 @@ static void setupCallbacks() {
             }
 
             if (!result->Initialized()) {
-              rpcs3_android.error(
+              rpcsx_android.error(
                   "Audio renderer %s could not be initialized, using a Null "
                   "renderer instead. Make sure that no other application is "
                   "running that might block audio access (e.g. Netflix).",
@@ -1524,7 +1524,7 @@ static void setupCallbacks() {
           [](const std::vector<std::string> &pkgs) {
             for (const std::string &pkg : pkgs) {
               if (!rpcs3::utils::install_pkg(pkg)) {
-                rpcs3_android.error("cd install pkgs: failed to install %s",
+                rpcsx_android.error("cd install pkgs: failed to install %s",
                                     pkg);
                 return false;
               }
@@ -1671,7 +1671,7 @@ Java_net_rpcsx_RPCSX_initialize(JNIEnv *env, jobject, jstring rootDir) {
   if (int r = libusb_set_option(nullptr, LIBUSB_OPTION_NO_DEVICE_DISCOVERY,
                                 nullptr);
       r != 0) {
-    rpcs3_android.warning(
+    rpcsx_android.warning(
         "libusb_set_option(LIBUSB_OPTION_NO_DEVICE_DISCOVERY) -> %d", r);
   }
 
@@ -1689,31 +1689,31 @@ Java_net_rpcsx_RPCSX_initialize(JNIEnv *env, jobject, jstring rootDir) {
     }
 
     // preserve old log file
-    if (std::filesystem::exists(fs::get_log_dir() + "RPCS3.log")) {
+    if (std::filesystem::exists(fs::get_log_dir() + "RPCSX.log")) {
       std::error_code ec;
-      std::filesystem::remove(fs::get_log_dir() + "RPCS3.old.log", ec);
-      std::filesystem::rename(fs::get_log_dir() + "RPCS3.log",
-                              fs::get_log_dir() + "RPCS3.old.log", ec);
+      std::filesystem::remove(fs::get_log_dir() + "RPCSX.old.log", ec);
+      std::filesystem::rename(fs::get_log_dir() + "RPCSX.log",
+                              fs::get_log_dir() + "RPCSX.old.log", ec);
     }
 
     // Limit log size to ~25% of free space
-    log_file = logs::make_file_listener(fs::get_log_dir() + "RPCS3.log",
+    log_file = logs::make_file_listener(fs::get_log_dir() + "RPCSX.log",
                                         stats.avail_free / 4);
   }
 
-  logs::stored_message ver{rpcs3_android.always()};
-  ver.text = fmt::format("RPCS3 v%s", rpcs3::get_verbose_version());
+  logs::stored_message ver{rpcsx_android.always()};
+  ver.text = fmt::format("RPCSX-ps3-android v%s", rpcs3::get_verbose_version());
 
   // Write System information
-  logs::stored_message sys{rpcs3_android.always()};
+  logs::stored_message sys{rpcsx_android.always()};
   sys.text = utils::get_system_info();
 
   // Write OS version
-  logs::stored_message os{rpcs3_android.always()};
+  logs::stored_message os{rpcsx_android.always()};
   os.text = utils::get_OS_version_string();
 
   // Write current time
-  logs::stored_message time{rpcs3_android.always()};
+  logs::stored_message time{rpcsx_android.always()};
   time.text = fmt::format("Current Time: %s", std::chrono::system_clock::now());
 
   logs::set_init(
@@ -1722,16 +1722,16 @@ Java_net_rpcsx_RPCSX_initialize(JNIEnv *env, jobject, jstring rootDir) {
   auto set_rlim = [](int resource, std::uint64_t limit) {
     rlimit64 rlim{};
     if (getrlimit64(resource, &rlim) != 0) {
-      rpcs3_android.error("failed to get rlimit for %d", resource);
+      rpcsx_android.error("failed to get rlimit for %d", resource);
       return;
     }
 
     rlim.rlim_cur = std::min<std::size_t>(rlim.rlim_max, limit);
-    rpcs3_android.error("rlimit[%d] = %u (requested %u, max %u)", resource,
+    rpcsx_android.error("rlimit[%d] = %u (requested %u, max %u)", resource,
                         rlim.rlim_cur, limit, rlim.rlim_max);
 
     if (setrlimit64(resource, &rlim) != 0) {
-      rpcs3_android.error("failed to set rlimit for %d", resource);
+      rpcsx_android.error("failed to set rlimit for %d", resource);
       return;
     }
   };
@@ -1826,7 +1826,7 @@ Java_net_rpcsx_RPCSX_getTitleId(JNIEnv *env, jobject) {
 
 extern "C" JNIEXPORT jboolean JNICALL Java_net_rpcsx_RPCSX_surfaceEvent(
     JNIEnv *env, jobject, jobject surface, jint event) {
-  rpcs3_android.warning("surface event %p, %d", surface, event);
+  rpcsx_android.warning("surface event %p, %d", surface, event);
 
   if (event == 2) {
     auto prevWindow = g_native_window.exchange(nullptr);
@@ -1843,7 +1843,7 @@ extern "C" JNIEXPORT jboolean JNICALL Java_net_rpcsx_RPCSX_surfaceEvent(
     auto newWindow = ANativeWindow_fromSurface(env, surface);
 
     if (newWindow == nullptr) {
-      rpcs3_android.fatal("returned native window is null, surface %p",
+      rpcsx_android.fatal("returned native window is null, surface %p",
                           surface);
       return false;
     }
@@ -1868,7 +1868,7 @@ extern "C" JNIEXPORT jboolean JNICALL Java_net_rpcsx_RPCSX_surfaceEvent(
 
 extern "C" JNIEXPORT jboolean JNICALL Java_net_rpcsx_RPCSX_usbDeviceEvent(
     JNIEnv *env, jobject, jint fd, jint vendorId, jint productId, jint event) {
-  rpcs3_android.warning(
+  rpcsx_android.warning(
       "usb device event %d fd: %d, vendorId: %d, productId: %d", event, fd,
       vendorId, productId);
 
@@ -1935,7 +1935,7 @@ extern "C" JNIEXPORT jboolean JNICALL Java_net_rpcsx_RPCSX_usbDeviceEvent(
     }
 
     if (selectedHandler != g_cfg_input.player1.handler.get()) {
-      rpcs3_android.warning("install %s pad handler", selectedHandler);
+      rpcsx_android.warning("install %s pad handler", selectedHandler);
 
       g_cfg_input.player1.handler.set(selectedHandler);
 
@@ -1973,13 +1973,13 @@ static bool installPup(JNIEnv *env, fs::file &&pup_f, jlong progressId) {
   AtExit atExit{[&] { pup.file().release_handle(); }};
 
   if (static_cast<pup_error>(pup) == pup_error::hash_mismatch) {
-    rpcs3_android.fatal("installFw: invalid PUP");
+    rpcsx_android.fatal("installFw: invalid PUP");
     progress.failure("Selected file is not firmware update file");
     return false;
   }
 
   if (static_cast<pup_error>(pup) != pup_error::ok) {
-    rpcs3_android.fatal("installFw: invalid PUP");
+    rpcsx_android.fatal("installFw: invalid PUP");
     progress.failure("Firmware update file is broken");
     return false;
   }
@@ -1989,7 +1989,7 @@ static bool installPup(JNIEnv *env, fs::file &&pup_f, jlong progressId) {
   const usz update_files_size = update_files_f ? update_files_f.size() : 0;
 
   if (!update_files_size) {
-    rpcs3_android.fatal("installFw: invalid PUP");
+    rpcsx_android.fatal("installFw: invalid PUP");
     progress.failure("Firmware update file is broken");
     return false;
   }
@@ -2005,7 +2005,7 @@ static bool installPup(JNIEnv *env, fs::file &&pup_f, jlong progressId) {
                          update_filenames.end());
 
   if (update_filenames.empty()) {
-    rpcs3_android.fatal("installFw: invalid PUP");
+    rpcsx_android.fatal("installFw: invalid PUP");
     progress.failure("Firmware update file is broken");
     return false;
   }
@@ -2022,7 +2022,7 @@ static bool installPup(JNIEnv *env, fs::file &&pup_f, jlong progressId) {
   }
 
   if (version_string.empty()) {
-    rpcs3_android.fatal("installFw: invalid PUP");
+    rpcsx_android.fatal("installFw: invalid PUP");
     progress.failure("Firmware update file is broken");
     return false;
   }
@@ -2049,7 +2049,7 @@ static bool installPup(JNIEnv *env, fs::file &&pup_f, jlong progressId) {
     auto dev_flash_tar_f = self_dec.MakeFile();
 
     if (dev_flash_tar_f.size() < 3) {
-      rpcs3_android.error(
+      rpcsx_android.error(
           "Firmware installation failed: Firmware could not be decompressed");
 
       progress.failure("Firmware update file could not be decompressed");
@@ -2060,7 +2060,7 @@ static bool installPup(JNIEnv *env, fs::file &&pup_f, jlong progressId) {
 
     if (!dev_flash_tar.extract()) {
 
-      rpcs3_android.error("Error while installing firmware: TAR contents are "
+      rpcsx_android.error("Error while installing firmware: TAR contents are "
                           "invalid. (package=%s)",
                           update_filename);
 
@@ -2544,7 +2544,7 @@ extern "C" JNIEXPORT jboolean JNICALL Java_net_rpcsx_RPCSX_settingsSet(
   try {
     value = nlohmann::json::parse(unwrap(env, jvalue));
   } catch (...) {
-    rpcs3_android.error("settingsSet: node %s passed with invalid json '%s'",
+    rpcsx_android.error("settingsSet: node %s passed with invalid json '%s'",
                         unwrap(env, jpath), unwrap(env, jvalue));
     return false;
   }
@@ -2552,12 +2552,12 @@ extern "C" JNIEXPORT jboolean JNICALL Java_net_rpcsx_RPCSX_settingsSet(
   auto root = find_cfg_node(&g_cfg, unwrap(env, jpath));
 
   if (root == nullptr) {
-    rpcs3_android.error("settingsSet: node %s not found", unwrap(env, jpath));
+    rpcsx_android.error("settingsSet: node %s not found", unwrap(env, jpath));
     return false;
   }
 
   if (!root->from_json(value, !Emu.IsStopped())) {
-    rpcs3_android.error("settingsSet: node %s not accepts value '%s'",
+    rpcsx_android.error("settingsSet: node %s not accepts value '%s'",
                         unwrap(env, jpath), value.dump());
     return false;
   }
