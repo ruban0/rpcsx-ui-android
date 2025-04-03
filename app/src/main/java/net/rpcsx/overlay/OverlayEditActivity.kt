@@ -14,11 +14,19 @@ import androidx.core.view.WindowInsetsControllerCompat
 import androidx.core.view.updateLayoutParams
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.scaleIn
+import androidx.compose.animation.scaleOut
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.gestures.detectDragGestures
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.clickable
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.KeyboardArrowUp
 import androidx.compose.material.icons.filled.KeyboardArrowDown
@@ -119,9 +127,30 @@ fun OverlayEditScreen() {
                 scaleValue = info.second.toFloat()
                 opacityValue = info.third.toFloat()
             }
+            val inputEnabled = (input as? PadOverlayDpad)?.enabled ?: (input as? PadOverlayButton)?.enabled
+            if (inputEnabled != null) {
+                isEnabled = inputEnabled
+            }
         }
 
-        if (isPanelVisible) {
+        if (!isPanelVisible) {
+            FloatingActionButton(
+                onClick = { isPanelVisible = true },
+                modifier = Modifier
+                    .align(Alignment.TopCenter)
+                    .padding(top = 20.dp),
+                containerColor = MaterialTheme.colorScheme.primary,
+                contentColor = Color.White
+            ) {
+                Icon(Icons.Default.KeyboardArrowDown, contentDescription = "Open Control Panel")
+            }
+        }
+
+        AnimatedVisibility(
+            visible = isPanelVisible,
+            enter = fadeIn(animationSpec = tween(300)) + scaleIn(initialScale = 0.8f, animationSpec = tween(300)),
+            exit = fadeOut(animationSpec = tween(200)) + scaleOut(targetScale = 0.8f, animationSpec = tween(200))
+        ) {
             ControlPanel(
                 scaleValue = scaleValue,
                 onScaleChange = { 
@@ -134,7 +163,10 @@ fun OverlayEditScreen() {
                     padOverlay?.setButtonOpacity(it.roundToInt())
                 },
                 isEnabled = isEnabled,
-                onEnableChange = { isEnabled = it },
+                onEnableChange = { 
+                    isEnabled = it 
+                    padOverlay?.enableButton(isEnabled)
+                },
                 currentButtonName = currentButtonName,
                 onResetClick = { showResetDialog = true },
                 onCloseClick = { isPanelVisible = false },
@@ -309,7 +341,7 @@ fun ControlPanel(
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun SliderComponent(label: String, value: Float, onValueChange: (Float) -> Unit) {
-    Column {
+    Column(modifier = Modifier.clickable(indication = null, interactionSource = remember { MutableInteractionSource() }) {}) {
         Text(text = "$label: ${value.roundToInt()}%", fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurface)
         Slider(
             value = value,

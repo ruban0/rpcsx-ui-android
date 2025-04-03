@@ -20,6 +20,12 @@ class PadOverlayButton(private val context: Context, resources: Resources, image
     var defaultSize: Pair<Int, Int> = Pair(-1, -1)
     lateinit var defaultPosition: Pair<Int, Int>
     private val prefs: SharedPreferences by lazy { context.getSharedPreferences("PadOverlayPrefs", Context.MODE_PRIVATE) }
+
+    var enabled: Boolean = prefs.getBoolean("button_${digital1}_${digital2}_enabled", true)
+        set(value) {
+            field = value
+            prefs.edit().putBoolean("button_${digital1}_${digital2}_enabled", value).apply()
+        }
     
     fun contains(x: Int, y: Int) = bounds.contains(x, y)
 
@@ -83,8 +89,8 @@ class PadOverlayButton(private val context: Context, resources: Resources, image
 
     fun setScale(percent: Int) {
         scaleFactor = percent / 100f
-        val newWidth = (intrinsicWidth * scaleFactor).roundToInt()
-        val newHeight = (intrinsicHeight * scaleFactor).roundToInt()
+        val newWidth = (1024 * scaleFactor).roundToInt()
+        val newHeight = (1024 * scaleFactor).roundToInt()
         setBounds(bounds.left, bounds.top, bounds.left + newWidth, bounds.top + newHeight)
         prefs.edit().putInt("button_${digital1}_${digital2}_scale", percent).apply()
     }
@@ -97,8 +103,8 @@ class PadOverlayButton(private val context: Context, resources: Resources, image
 
     fun measureDefaultScale(): Int {
         if (defaultSize.second <= 0 || defaultSize.first <= 0) return 100
-        val widthScale = defaultSize.second.toFloat() / intrinsicWidth * 100
-        val heightScale = defaultSize.first.toFloat() / intrinsicHeight * 100
+        val widthScale = defaultSize.second.toFloat() / 1024 * 100
+        val heightScale = defaultSize.first.toFloat() / 1024 * 100
         return minOf(widthScale, heightScale).roundToInt()
     }
 

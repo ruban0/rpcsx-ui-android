@@ -57,6 +57,12 @@ class PadOverlay(context: Context?, attrs: AttributeSet?) : SurfaceView(context,
         strokeWidth = 5f
     }
 
+    private val yellowOutlinePaint = Paint().apply {
+        color = Color.YELLOW
+        style = Paint.Style.STROKE
+        strokeWidth = 5f
+    }
+
     init {
         val metrics = context!!.resources.displayMetrics
         val totalWidth = metrics.widthPixels
@@ -315,17 +321,17 @@ class PadOverlay(context: Context?, attrs: AttributeSet?) : SurfaceView(context,
             
             val force =
                 action == MotionEvent.ACTION_UP || action == MotionEvent.ACTION_POINTER_UP || action == MotionEvent.ACTION_CANCEL || action == MotionEvent.ACTION_MOVE
-            if (force || dpad.contains(x, y)) {
+            if (force || (dpad.contains(x, y) && dpad.enabled)) {
                 hit = dpad.onTouch(motionEvent, pointerIndex, state)
             }
 
-            if (force || (!hit && triangleSquareCircleCross.contains(x, y))
+            if (force || (!hit && triangleSquareCircleCross.contains(x, y) && triangleSquareCircleCross.enabled)
             ) {
                 hit = triangleSquareCircleCross.onTouch(motionEvent, pointerIndex, state)
             }
 
             buttons.forEach { button ->
-                if (force || (!hit && button.contains(x, y))) {
+                if (force || (!hit && button.contains(x, y) && button.enabled)) {
                     hit = button.onTouch(motionEvent, pointerIndex, state)
                 }
             }
@@ -403,9 +409,23 @@ class PadOverlay(context: Context?, attrs: AttributeSet?) : SurfaceView(context,
 
     override fun draw(canvas: Canvas) {
         super.draw(canvas)
-        buttons.forEach { button -> button.draw(canvas) }
-        dpad.draw(canvas)
-        triangleSquareCircleCross.draw(canvas)
+        buttons.forEach { button -> 
+            if (button.enabled)
+                button.draw(canvas) 
+            else
+                createOutline(isEditing, button.bounds, canvas, yellowOutlinePaint)
+        }
+        
+        if (dpad.enabled)
+            dpad.draw(canvas)
+        else
+            createOutline(isEditing, dpad.getBounds(), canvas, yellowOutlinePaint)
+            
+        if (triangleSquareCircleCross.enabled) 
+            triangleSquareCircleCross.draw(canvas)
+        else
+            createOutline(isEditing, triangleSquareCircleCross.getBounds(), canvas, yellowOutlinePaint)
+          
         sticks.forEach { it.draw(canvas) }
         floatingSticks.forEach { it?.draw(canvas) }
 
@@ -417,9 +437,15 @@ class PadOverlay(context: Context?, attrs: AttributeSet?) : SurfaceView(context,
             }
 
             bounds?.let {
-                val rect = Rect(it.left, it.top, it.right, it.bottom)
-                canvas.drawRect(rect, outlinePaint)
+                createOutline(true, it, canvas, outlinePaint)
             }
+        }
+    }
+
+    private fun createOutline(shouldApply: Boolean = true, bounds: Rect, canvas: Canvas, outlinePaintColor: Paint) {
+        if (shouldApply) {
+            val rect = Rect(bounds.left, bounds.top, bounds.right, bounds.bottom)
+            canvas.drawRect(rect, outlinePaintColor)
         }
     }
 
@@ -553,5 +579,14 @@ class PadOverlay(context: Context?, attrs: AttributeSet?) : SurfaceView(context,
             ?: (selectedInput as? PadOverlayButton)?.updatePosition(bounds.left, bounds.top + 1, true)
             invalidate()
         }
+    }
+
+    fun enableButton(value: Boolean) {
+        if (selectedInput is PadOverlayDpad) {
+            (selectedInput as PadOverlayDpad).enabled = value
+        } else if (selectedInput is PadOverlayButton) {
+            (selectedInput as PadOverlayButton).enabled = value
+        }
+        invalidate()
     }
 }
