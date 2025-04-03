@@ -131,7 +131,7 @@ fun GameItem(game: Game) {
                         menuExpanded.value = false
                         val deleteProgress = ProgressRepository.create(context, "Deleting Game")
                         game.addProgress(GameProgress(deleteProgress, GameProgressType.Compile))
-                        ProgressRepository.onProgressEvent(deleteProgress, -1, 0L)
+                        ProgressRepository.onProgressEvent(deleteProgress, 1, 0L)
                         val path = File(game.info.path)
                         if (path.exists()) {
                             path.deleteRecursively()
