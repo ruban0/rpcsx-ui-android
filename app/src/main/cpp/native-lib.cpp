@@ -39,9 +39,9 @@
 #include "Utilities/StrFmt.h"
 #include "Utilities/StrUtil.h"
 #include "Utilities/Thread.h"
-#include "block_dev.hpp"
+#include "dev/block_dev.hpp"
+#include "dev/iso.hpp"
 #include "hidapi_libusb.h"
-#include "iso.hpp"
 #include "libusb.h"
 #include "rpcs3_version.h"
 #include "util/asm.hpp"
@@ -194,7 +194,6 @@ struct GraphicsFrame : GSFrameBase {
 
   void present_frame(std::vector<u8> &data, u32 pitch, u32 width, u32 height,
                      bool is_bgra) const override {}
-
   void take_screenshot(std::vector<u8> &&sshot_data, u32 sshot_width,
                        u32 sshot_height, bool is_bgra) override {}
 };
@@ -301,7 +300,7 @@ static FileType getFileType(const fs::file &file) {
     return FileType::Rap;
   }
 
-  if (iso_fs::open(std::make_unique<file_view_block_dev>(file))) {
+  if (iso_dev::open(std::make_unique<file_view_block_dev>(file))) {
     return FileType::Iso;
   }
 
@@ -1172,7 +1171,8 @@ private:
 };
 
 struct OverlaySaveDialog : SaveDialogBase {
-  s32 ShowSaveDataList(std::vector<SaveDataEntry> &save_entries, s32 focused,
+  s32 ShowSaveDataList(const std::string &base_dir,
+                       std::vector<SaveDataEntry> &save_entries, s32 focused,
                        u32 op, vm::ptr<CellSaveDataListSet> listSet,
                        bool enable_overlay) override {
     rpcsx_android.notice("ShowSaveDataList(save_entries=%d, focused=%d, "
@@ -1198,7 +1198,7 @@ struct OverlaySaveDialog : SaveDialogBase {
       rpcsx_android.notice("ShowSaveDataList: Showing native UI dialog");
 
       s32 result = manager->create<rsx::overlays::save_dialog>()->show(
-          save_entries, focused, op, listSet, enable_overlay);
+          base_dir, save_entries, focused, op, listSet, enable_overlay);
 
       if (result != rsx::overlays::user_interface::selection_code::error) {
         rpcsx_android.notice(
@@ -1637,7 +1637,7 @@ extern "C" JNIEXPORT jboolean JNICALL Java_net_rpcsx_RPCSX_overlayPadData(
       btn.m_pressed = (digital2 & btn.m_outKeyCode) != 0;
     }
 
-      btn.m_value = btn.m_pressed ? 255 : 0;
+    btn.m_value = btn.m_pressed ? 255 : 0;
   }
 
   pad->m_sticks[0].m_value = leftStickX;
@@ -1809,7 +1809,7 @@ extern "C" JNIEXPORT void JNICALL Java_net_rpcsx_RPCSX_kill(JNIEnv *env,
 
 extern "C" JNIEXPORT void JNICALL Java_net_rpcsx_RPCSX_resume(JNIEnv *env,
                                                               jobject) {
-    Emu.Resume();
+  Emu.Resume();
 }
 
 extern "C" JNIEXPORT void JNICALL Java_net_rpcsx_RPCSX_openHomeMenu(JNIEnv *env,
@@ -2260,7 +2260,7 @@ static bool installRap(JNIEnv *env, fs::file &&file, jlong progressId,
 }
 
 static bool installIso(JNIEnv *env, fs::file &&file, jlong progressId) {
-  auto optIso = iso_fs::open(std::make_unique<file_view_block_dev>(file));
+  auto optIso = iso_dev::open(std::make_unique<file_view_block_dev>(file));
   Progress progress(env, progressId);
 
   if (!optIso) {
@@ -2269,12 +2269,15 @@ static bool installIso(JNIEnv *env, fs::file &&file, jlong progressId) {
   }
 
   auto iso = std::move(*optIso);
-  auto sfo_file = iso.open("PS3_GAME/PARAM.SFO");
+  auto sfo_raw_file = iso.open("PS3_GAME/PARAM.SFO", fs::read);
 
-  if (!sfo_file) {
+  if (!sfo_raw_file) {
     progress.failure("Failed to locate PARAM.SFO in ISO");
     return false;
   }
+
+  fs::file sfo_file;
+  sfo_file.reset(std::move(sfo_raw_file));
 
   auto sfo = psf::load_object(sfo_file, "iso://PS3_GAME/PARAM.SFO");
   auto title_id = psf::get_string(sfo, "TITLE_ID");
@@ -2302,7 +2305,10 @@ static bool installIso(JNIEnv *env, fs::file &&file, jlong progressId) {
       auto path = std::move(workList.back());
       workList.pop_back();
 
-      for (auto entry : iso.open_dir(path)) {
+      fs::dir dir;
+      dir.reset(iso.open_dir(path));
+
+      for (auto entry : dir) {
         if (entry.name == "." || entry.name == "..") {
           continue;
         }
@@ -2337,7 +2343,10 @@ static bool installIso(JNIEnv *env, fs::file &&file, jlong progressId) {
       return false;
     }
 
-    for (auto entry : iso.open_dir(root)) {
+    fs::dir dir;
+    dir.reset(iso.open_dir(root));
+
+    for (auto entry : dir) {
       if (entry.name == "." || entry.name == "..") {
         continue;
       }
@@ -2354,13 +2363,16 @@ static bool installIso(JNIEnv *env, fs::file &&file, jlong progressId) {
 
         continue;
       }
-      auto file = iso.open(root / entry.name);
+      auto raw_file = iso.open(root / entry.name, fs::read);
 
-      if (!file) {
+      if (!raw_file) {
         progress.failure(fmt::format("Failed to open file in ISO: %s",
                                      (root / entry.name).string()));
         return false;
       }
+
+      fs::file file;
+      file.reset(std::move(raw_file));
 
       if (!fs::write_file(entryDestPath,
                           fs::open_mode::create + fs::open_mode::trunc,
@@ -2393,7 +2405,8 @@ Java_net_rpcsx_RPCSX_isInstallableFile(JNIEnv *env, jobject, jint fd) {
 
   auto type = getFileType(file);
   file.seek(0);
-  return type != FileType::Unknown && type != FileType::Rap; // FIXME: implement rap preinstallation
+  return type != FileType::Unknown &&
+         type != FileType::Rap; // FIXME: implement rap preinstallation
 }
 
 extern "C" JNIEXPORT jstring JNICALL
@@ -2468,7 +2481,8 @@ extern "C" JNIEXPORT jstring JNICALL
 Java_net_rpcsx_RPCSX_systemInfo(JNIEnv *env, jobject) {
   std::string result;
 
-  fmt::append(result, "%s\n\nLLVM CPU: %s\n\n", utils::get_system_info(), fallback_cpu_detection());
+  fmt::append(result, "%s\n\nLLVM CPU: %s\n\n", utils::get_system_info(),
+              fallback_cpu_detection());
 
   {
     vk::instance device_enum_context;
@@ -2478,13 +2492,9 @@ Java_net_rpcsx_RPCSX_systemInfo(JNIEnv *env, jobject) {
           device_enum_context.enumerate_devices();
 
       for (const auto &gpu : gpus) {
-        fmt::append(
-                result,
-                "GPU: %s\n\nDriver: %s (v%s)\n\nVulkan: %s",
-                gpu.get_name(),
-                gpu.get_driver_name(),
-                gpu.get_driver_version(),
-                gpu.get_driver_vk_version());
+        fmt::append(result, "GPU: %s\n\nDriver: %s (v%s)\n\nVulkan: %s",
+                    gpu.get_name(), gpu.get_driver_name(),
+                    gpu.get_driver_version(), gpu.get_driver_vk_version());
       }
     }
   }
