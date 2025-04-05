@@ -126,12 +126,13 @@ class PadOverlayDpad(
         idleAlpha = (255 * percent / 100).coerceIn(0, 255)
         prefs.edit().putInt("${inputId}_opacity", percent).apply()
     }
-
+    
     fun resetConfigs() {
         prefs.edit()
             .remove("${inputId}_x")
             .remove("${inputId}_y")
             .remove("${inputId}_scale")
+            .remove("${inputId}_opacity")
             .apply()
         area = Rect(defaultArea)
         setOpacity(50)
@@ -144,10 +145,8 @@ class PadOverlayDpad(
         val x = prefs.getInt("${inputId}_x", area.left)
         val y = prefs.getInt("${inputId}_y", area.top)
         val scale = prefs.getInt("${inputId}_scale", -1)
-        val alpha = prefs.getInt("${inputId}_opacity", -1)
         updatePosition(x, y, force = true)
         if (scale != -1) setScale(scale)
-        if (alpha != -1) setOpacity(alpha)
     }
 
     fun measureDefaultScale(): Int {
@@ -157,7 +156,7 @@ class PadOverlayDpad(
     }
 
     fun getInfo(): Triple<String, Int, Int> {
-        return Triple("Dpad", prefs.getInt("${inputId}_scale", 50), prefs.getInt("${inputId}_scale", measureDefaultScale()))
+        return Triple("Dpad", prefs.getInt("${inputId}_scale", measureDefaultScale()), prefs.getInt("${inputId}_opacity", 50))
     }
 
     private fun updateBounds() {

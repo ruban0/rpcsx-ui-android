@@ -518,7 +518,8 @@ class PadOverlay(context: Context?, attrs: AttributeSet?) : SurfaceView(context,
             multitouch
         )
 
-        result.idleAlpha = idleAlpha
+        val alpha = prefs.getInt("${inputId}_opacity", -1)
+        result.setOpacity(if (alpha != -1) alpha else 50)
         return result
     }
 
