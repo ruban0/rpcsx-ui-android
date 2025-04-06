@@ -1,3 +1,4 @@
+
 # Todo List:
 # - Move librpcsx compilation away
 # - Do not use legacy CMake scripts (figure out how)
@@ -66,10 +67,15 @@ jobs:
 
     - name: Setup Android SDK
       uses: android-actions/setup-android@v3
-
-    - name: Install packages
-      run: yes | sdkmanager "cmake;3.31.6"
-
+      
+    - name: Install Android NDK and CMake
+      run: |
+        yes | sdkmanager "ndk;27.0.12077973" "cmake;3.31.6"
+   
+    - name: Fix libnativehelper for API 29
+      run: |
+         cp /usr/local/lib/android/sdk/ndk/27.0.12077973/toolchains/llvm/prebuilt/linux-x86_64/sysroot/usr/lib/aarch64-linux-android/31/libnativehelper.so /usr/local/lib/android/sdk/ndk/27.0.12077973/toolchains/llvm/prebuilt/linux-x86_64/sysroot/usr/lib/aarch64-linux-android/29/
+         
     - name: Build with Gradle
       env: 
         KEYSTORE_PATH: "ks.jks"
