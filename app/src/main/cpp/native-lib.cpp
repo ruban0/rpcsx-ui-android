@@ -2,8 +2,6 @@
 #include "Crypto/unself.h"
 #include "Emu/Audio/Cubeb/CubebBackend.h"
 #include "Emu/Audio/Null/NullAudioBackend.h"
-#include "Emu/Cell/Modules/cellMsgDialog.h"
-#include "Emu/Cell/Modules/cellSysutil.h"
 #include "Emu/Cell/PPUAnalyser.h"
 #include "Emu/Cell/SPURecompiler.h"
 #include "Emu/Cell/lv2/sys_sync.h"
@@ -11,6 +9,7 @@
 #include "Emu/Io/KeyboardHandler.h"
 #include "Emu/Io/Null/NullKeyboardHandler.h"
 #include "Emu/Io/Null/NullMouseHandler.h"
+#include "Emu/Io/Null/NullPadHandler.h"
 #include "Emu/Io/Null/null_camera_handler.h"
 #include "Emu/Io/Null/null_music_handler.h"
 #include "Emu/Io/pad_config_types.h"
@@ -34,27 +33,29 @@
 #include "Loader/PSF.h"
 #include "Loader/PUP.h"
 #include "Loader/TAR.h"
-#include "Utilities/File.h"
-#include "Utilities/JIT.h"
-#include "Utilities/StrFmt.h"
-#include "Utilities/StrUtil.h"
-#include "Utilities/Thread.h"
 #include "dev/block_dev.hpp"
 #include "dev/iso.hpp"
 #include "hidapi_libusb.h"
 #include "libusb.h"
 #include "rpcs3_version.h"
+#include "rpcsx/fw/ps3/cellMsgDialog.h"
+#include "rpcsx/fw/ps3/cellSysutil.h"
+#include "util/File.h"
+#include "util/JIT.h"
+#include "util/StrFmt.h"
+#include "util/StrUtil.h"
+#include "util/Thread.h"
 #include "util/asm.hpp"
 #include "util/console.h"
 #include "util/fixed_typemap.hpp"
 #include "util/logs.hpp"
 #include "util/serialization.hpp"
 #include "util/sysinfo.hpp"
-#include <Emu/Cell/Modules/cellSaveData.h>
-#include <Emu/Cell/Modules/sceNpTrophy.h>
 #include <Emu/Io/pad_config.h>
 #include <Emu/RSX/GSFrameBase.h>
 #include <Emu/System.h>
+#include <rpcsx/fw/ps3/cellSaveData.h>
+#include <rpcsx/fw/ps3/sceNpTrophy.h>
 
 #include <algorithm>
 #include <android/log.h>
@@ -1445,6 +1446,44 @@ static void setupCallbacks() {
           [](auto...) { return std::make_shared<null_camera_handler>(); },
       .get_music_handler =
           [](auto...) { return std::make_shared<null_music_handler>(); },
+      .create_pad_handler = [](pad_handler type, void *thread, void *window)
+          -> std::shared_ptr<PadHandlerBase> {
+        switch (type) {
+        case pad_handler::keyboard:
+        case pad_handler::null:
+          break;
+        case pad_handler::ds3:
+          return std::make_shared<ds3_pad_handler>();
+        case pad_handler::ds4:
+          return std::make_shared<ds4_pad_handler>();
+        case pad_handler::dualsense:
+          return std::make_shared<dualsense_pad_handler>();
+        case pad_handler::skateboard:
+          //   return std::make_shared<skateboard_pad_handler>();
+          break;
+        case pad_handler::move:
+          // return std::make_shared<ps_move_handler>();
+          break;
+#ifdef _WIN32
+        case pad_handler::xinput:
+          return std::make_shared<xinput_pad_handler>();
+        case pad_handler::mm:
+          return std::make_shared<mm_joystick_handler>();
+#endif
+#ifdef HAVE_SDL3
+        case pad_handler::sdl:
+          return std::make_shared<sdl_pad_handler>();
+#endif
+#ifdef HAVE_LIBEVDEV
+        case pad_handler::evdev:
+          return std::make_shared<evdev_joystick_handler>();
+#endif
+        case pad_handler::virtual_pad:
+          return std::make_shared<virtual_pad_handler>();
+        }
+
+        return std::make_shared<NullPadHandler>();
+      },
       .init_gs_render =
           [](utils::serial *ar) {
             switch (g_cfg.video.renderer.get()) {

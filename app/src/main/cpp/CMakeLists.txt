@@ -102,6 +102,8 @@ if (NOT EXISTS ${LLVM_DIR})
     )
 endif()
 
+set(WITH_RPCSX off)
+set(WITH_RPCS3 on)
 set(USE_SYSTEM_LIBUSB off)
 set(USE_SYSTEM_CURL off)
 set(USE_DISCORD_RPC off)
@@ -117,45 +119,20 @@ set(USE_OPENSL off)
 set(ASMJIT_NO_SHM_OPEN on)
 set(USE_SYSTEM_ZLIB on)
 set(USE_LIBEVDEV off)
+set(COMPILE_FFMPEG off)
 
-add_subdirectory(rpcsx/rpcs3 EXCLUDE_FROM_ALL)
+add_subdirectory(rpcsx EXCLUDE_FROM_ALL)
 
 add_library(${CMAKE_PROJECT_NAME} SHARED
     native-lib.cpp
-    rpcsx/rpcs3/rpcs3/stb_image.cpp
-    rpcsx/rpcs3/rpcs3/Input/ds3_pad_handler.cpp
-    rpcsx/rpcs3/rpcs3/Input/ds4_pad_handler.cpp
-    rpcsx/rpcs3/rpcs3/Input/dualsense_pad_handler.cpp
-    rpcsx/rpcs3/rpcs3/Input/evdev_joystick_handler.cpp
-    rpcsx/rpcs3/rpcs3/Input/evdev_gun_handler.cpp
-    rpcsx/rpcs3/rpcs3/Input/hid_pad_handler.cpp
-    rpcsx/rpcs3/rpcs3/Input/virtual_pad_handler.cpp
-    rpcsx/rpcs3/rpcs3/Input/mm_joystick_handler.cpp
-    rpcsx/rpcs3/rpcs3/Input/pad_thread.cpp
-    rpcsx/rpcs3/rpcs3/Input/product_info.cpp
-    rpcsx/rpcs3/rpcs3/Input/ps_move_calibration.cpp
-    rpcsx/rpcs3/rpcs3/Input/ps_move_config.cpp
-    rpcsx/rpcs3/rpcs3/Input/ps_move_handler.cpp
-    rpcsx/rpcs3/rpcs3/Input/ps_move_tracker.cpp
-    rpcsx/rpcs3/rpcs3/Input/raw_mouse_config.cpp
-    rpcsx/rpcs3/rpcs3/Input/raw_mouse_handler.cpp
-    rpcsx/rpcs3/rpcs3/Input/sdl_pad_handler.cpp
-    rpcsx/rpcs3/rpcs3/Input/skateboard_pad_handler.cpp
-    rpcsx/rpcs3/rpcs3/dev/iso.cpp
-    rpcsx/rpcs3/rpcs3/rpcs3_version.cpp
 )
 
 target_include_directories(${CMAKE_PROJECT_NAME} PUBLIC rpcs3/rpcs3)
 
 target_link_libraries(${CMAKE_PROJECT_NAME}
+    rpcs3
+    rpcsx::fw::ps3
     android
     log
-    rpcs3_emu
     nativehelper
-    3rdparty::libusb
-    3rdparty::hidapi
-    3rdparty::wolfssl
-    3rdparty::libcurl
-    3rdparty::zlib
-    3rdparty::fusion
 )
