@@ -99,7 +99,8 @@ class RPCSX {
     companion object {
         var initialized = false
         val instance = RPCSX()
-        var rootDirectory: String = ""
+        var rootDirectory = ""
+        var lastPlayedGame = ""
         var activeGame = mutableStateOf<String?>(null)
         var state = mutableStateOf(EmulatorState.Stopped)
 

@@ -42,7 +42,7 @@ class RPCSXActivity : Activity() {
         }
 
         val gamePath = intent.getStringExtra("path")!!
-
+        RPCSX.lastPlayedGame = gamePath
 
         bootThread = thread {
             if (RPCSX.getState() != EmulatorState.Stopped) {

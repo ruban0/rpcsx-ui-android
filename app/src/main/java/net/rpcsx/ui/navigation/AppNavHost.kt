@@ -316,6 +316,22 @@ fun GamesDestination(
                             )
                         }
                     )
+
+                    HorizontalDivider()
+
+                    NavigationDrawerItem(
+                        label = { Text("About") },
+                        selected = false,
+                        icon = { Icon(Icons.Outlined.Info, contentDescription = null) },
+                        onClick = {
+                            AlertDialogQueue.showDialog(
+                                "RPCSX UI Android",
+                                "RPCSX v${RPCSX.instance.getVersion()}",
+                                confirmText = "Copy",
+                            )
+                        }
+                    )
+
                 }
             }
         }
