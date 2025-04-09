@@ -7,6 +7,7 @@ import android.graphics.Bitmap
 import android.graphics.Canvas
 import android.graphics.Rect
 import android.view.MotionEvent
+import androidx.core.content.edit
 import androidx.core.graphics.drawable.toDrawable
 import kotlin.math.roundToInt
 
@@ -53,9 +54,14 @@ class PadOverlayDpad(
     private val locked = arrayOf(-1, -1)
     private val btnState = arrayOf(DpadState(), DpadState())
     private val digitalBits = arrayOf(0, 0)
-    private val prefs: SharedPreferences by lazy { context.getSharedPreferences("PadOverlayPrefs", Context.MODE_PRIVATE) }
+    private val prefs: SharedPreferences by lazy {
+        context.getSharedPreferences(
+            "PadOverlayPrefs", Context.MODE_PRIVATE
+        )
+    }
     private var offsetX = 0
     private var offsetY = 0
+
     // stores the default datas
     private val defaultArea = Rect(area)
     private val defaultButtonWidth = buttonWidth
@@ -66,7 +72,7 @@ class PadOverlayDpad(
     var enabled: Boolean = prefs.getBoolean("${inputId}_enabled", true)
         set(value) {
             field = value
-            prefs.edit().putBoolean("${inputId}_enabled", value).apply()
+            prefs.edit { putBoolean("${inputId}_enabled", value) }
         }
 
     init {
@@ -88,14 +94,14 @@ class PadOverlayDpad(
         val newTop = if (!force) y - offsetY else y
         val newRight = newLeft + area.width()
         val newBottom = newTop + area.height()
-        
+
         area.set(newLeft, newTop, newRight, newBottom)
         updateBounds()
-        
-        prefs.edit()
-            .putInt("${inputId}_x", area.left)
-            .putInt("${inputId}_y", area.top)
-            .apply()
+
+        prefs.edit {
+            putInt("${inputId}_x", area.left)
+            putInt("${inputId}_y", area.top)
+        }
     }
 
     fun stopDragging() {
@@ -108,32 +114,34 @@ class PadOverlayDpad(
         val newHeight = (1024 * scaleFactor).roundToInt()
         val centerX = area.centerX()
         val centerY = area.centerY()
-        
-        area.set(centerX - newWidth / 2, centerY - newHeight / 2, centerX + newWidth / 2, centerY + newHeight / 2)
+
+        area.set(
+            centerX - newWidth / 2,
+            centerY - newHeight / 2,
+            centerX + newWidth / 2,
+            centerY + newHeight / 2
+        )
         // FIXME: Implement proper calculation which will work for all buttons
         buttonWidth = newWidth / 2
         buttonHeight = newHeight / 2 - newHeight / 20
         updateBounds()
 
-        prefs.edit()
-            .putInt("${inputId}_x", area.left)
-            .putInt("${inputId}_y", area.top)
-            .putInt("${inputId}_scale", percent)
-            .apply()
+        prefs.edit {
+            putInt("${inputId}_x", area.left).putInt("${inputId}_y", area.top)
+                .putInt("${inputId}_scale", percent)
+        }
     }
 
     fun setOpacity(percent: Int) {
         idleAlpha = (255 * percent / 100).coerceIn(0, 255)
-        prefs.edit().putInt("${inputId}_opacity", percent).apply()
+        prefs.edit { putInt("${inputId}_opacity", percent) }
     }
-    
+
     fun resetConfigs() {
-        prefs.edit()
-            .remove("${inputId}_x")
-            .remove("${inputId}_y")
-            .remove("${inputId}_scale")
-            .remove("${inputId}_opacity")
-            .apply()
+        prefs.edit {
+            remove("${inputId}_x").remove("${inputId}_y").remove("${inputId}_scale")
+                .remove("${inputId}_opacity")
+        }
         area = Rect(defaultArea)
         setOpacity(50)
         buttonWidth = defaultButtonWidth
@@ -149,14 +157,18 @@ class PadOverlayDpad(
         if (scale != -1) setScale(scale)
     }
 
-    fun measureDefaultScale(): Int {
+    private fun measureDefaultScale(): Int {
         val widthScale = defaultArea.width().toFloat() / 1024 * 100
         val heightScale = defaultArea.height().toFloat() / 1024 * 100
         return minOf(widthScale, heightScale).roundToInt()
     }
 
     fun getInfo(): Triple<String, Int, Int> {
-        return Triple("Dpad", prefs.getInt("${inputId}_scale", measureDefaultScale()), prefs.getInt("${inputId}_opacity", 50))
+        return Triple(
+            "Dpad",
+            prefs.getInt("${inputId}_scale", measureDefaultScale()),
+            prefs.getInt("${inputId}_opacity", 50)
+        )
     }
 
     private fun updateBounds() {
@@ -285,11 +297,11 @@ class PadOverlayDpad(
             event.getX(pointerIndex).toInt(), event.getY(pointerIndex).toInt()
         )
     }
-    
+
     fun getBounds(): Rect {
         return area
     }
-    
+
     fun draw(canvas: Canvas) {
         drawableLeft.alpha =
             if (btnState[0].isActive(DpadButton.Left) || btnState[1].isActive(DpadButton.Left)) 255 else idleAlpha

@@ -17,7 +17,6 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.material.icons.Icons
@@ -84,140 +83,140 @@ fun AdvancedSettingsScreen(
     Scaffold(
         modifier = Modifier
             .nestedScroll(topBarScrollBehavior.nestedScrollConnection)
-            .then(modifier),
-        topBar = {
+            .then(modifier), topBar = {
             val titlePath = path.replace("@@", " / ").removePrefix(" / ")
-            LargeTopAppBar(
-                title = {
-                    if (isSearching) {
-                        BasicTextField(
-                            value = searchQuery,
-                            onValueChange = { searchQuery = it },
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(horizontal = 8.dp),
-                            singleLine = true,
-                            textStyle = TextStyle(
-                                color = MaterialTheme.colorScheme.onSurface,
-                                fontSize = 20.sp
-                            ),
-                            decorationBox = { innerTextField ->
-                                Box(
-                                    modifier = Modifier
-                                        .fillMaxWidth()
-                                        .background(
-                                            MaterialTheme.colorScheme.surfaceVariant,
-                                            shape = RoundedCornerShape(8.dp)
-                                        )
-                                        .padding(8.dp)
-                                ) {
-                                    if (searchQuery.isEmpty()) {
-                                        Text(
-                                            text = "Search settings...",
-                                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                                        )
-                                    }
-                                    innerTextField()
+            LargeTopAppBar(title = {
+                if (isSearching) {
+                    BasicTextField(
+                        value = searchQuery,
+                        onValueChange = { searchQuery = it },
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 8.dp),
+                        singleLine = true,
+                        textStyle = TextStyle(
+                            color = MaterialTheme.colorScheme.onSurface, fontSize = 20.sp
+                        ),
+                        decorationBox = { innerTextField ->
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .background(
+                                        MaterialTheme.colorScheme.surfaceVariant,
+                                        shape = RoundedCornerShape(8.dp)
+                                    )
+                                    .padding(8.dp)
+                            ) {
+                                if (searchQuery.isEmpty()) {
+                                    Text(
+                                        text = "Search settings...",
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                                    )
                                 }
+                                innerTextField()
                             }
-                        )
-                    } else {
-                        Text(
-                            text = if (titlePath.isEmpty()) "Advanced Settings" else titlePath,
-                            fontWeight = FontWeight.Medium
-                        )
-                    }
-                },
-                scrollBehavior = topBarScrollBehavior,
-                navigationIcon = {
-                    IconButton(onClick = navigateBack) {
-                        Icon(
-                            imageVector = Icons.AutoMirrored.Default.KeyboardArrowLeft,
-                            contentDescription = null
-                        )
-                    }
-                },
-                actions = {
-                    IconButton(
-                        onClick = {
-                            if (isSearching) {
-                                searchQuery = ""
-                                isSearching = false
-                            } else {
-                                isSearching = true
-                            }
-                        }
-                    ) {
-                        Icon(
-                            imageVector = if (isSearching) Icons.Default.Close else Icons.Default.Search,
-                            contentDescription = if (isSearching) "Close Search" else "Search"
-                        )
-                    }
+                        })
+                } else {
+                    Text(
+                        text = titlePath.ifEmpty { "Advanced Settings" },
+                        fontWeight = FontWeight.Medium
+                    )
                 }
-            )
-        }
-    ) { contentPadding ->
+            }, scrollBehavior = topBarScrollBehavior, navigationIcon = {
+                IconButton(onClick = navigateBack) {
+                    Icon(
+                        imageVector = Icons.AutoMirrored.Default.KeyboardArrowLeft,
+                        contentDescription = null
+                    )
+                }
+            }, actions = {
+                IconButton(
+                    onClick = {
+                        if (isSearching) {
+                            searchQuery = ""
+                            isSearching = false
+                        } else {
+                            isSearching = true
+                        }
+                    }) {
+                    Icon(
+                        imageVector = if (isSearching) Icons.Default.Close else Icons.Default.Search,
+                        contentDescription = if (isSearching) "Close Search" else "Search"
+                    )
+                }
+            })
+        }) { contentPadding ->
         LazyColumn(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(contentPadding),
         ) {
-            val filteredKeys = settings.keys().asSequence()
-                .filter { it.contains(searchQuery, ignoreCase = true) }
-                .toList()
-                
+            val filteredKeys =
+                settings.keys().asSequence().filter { it.contains(searchQuery, ignoreCase = true) }
+                    .toList()
+
             filteredKeys.forEach { key ->
                 val itemPath = "$path@@$key"
                 item(key = key) {
                     val itemObject = settingValue.value[key] as? JSONObject
 
                     if (itemObject != null) {
-                        when (val type = if (itemObject.has("type")) itemObject.getString("type") else null) {
-                             null -> {
+                        when (val type =
+                            if (itemObject.has("type")) itemObject.getString("type") else null) {
+                            null -> {
                                 RegularPreference(
-                                    title = key,
-                                    leadingIcon = null,
-                                    onClick = {
-                                        Log.e("Main", "Navigate to settings$itemPath, object $itemObject")
+                                    title = key, leadingIcon = null, onClick = {
+                                        Log.e(
+                                            "Main",
+                                            "Navigate to settings$itemPath, object $itemObject"
+                                        )
                                         navigateTo("settings$itemPath")
-                                    }
-                                )  
+                                    })
                             }
 
                             "bool" -> {
-                                var itemValue by remember {  mutableStateOf(itemObject.getBoolean("value"))  }
+                                var itemValue by remember { mutableStateOf(itemObject.getBoolean("value")) }
                                 val def = itemObject.getBoolean("default")
-                                SwitchPreference (
+                                SwitchPreference(
                                     checked = itemValue,
                                     title = key + if (itemValue == def) "" else " *",
                                     leadingIcon = null,
                                     onClick = { value ->
-                                        if (!RPCSX.instance.settingsSet(itemPath, if (value) "true" else "false")) {
-                                           AlertDialogQueue.showDialog("Setting error", "Failed to assign $itemPath value $value")
+                                        if (!RPCSX.instance.settingsSet(
+                                                itemPath, if (value) "true" else "false"
+                                            )
+                                        ) {
+                                            AlertDialogQueue.showDialog(
+                                                "Setting error",
+                                                "Failed to assign $itemPath value $value"
+                                            )
                                         } else {
                                             itemObject.put("value", value)
                                             itemValue = value
                                         }
-                                   },
-                                   onLongClick = {
+                                    },
+                                    onLongClick = {
                                         AlertDialogQueue.showDialog(
                                             title = "Reset Setting",
                                             message = "Do you want to reset '$key' to its default value?",
                                             onConfirm = {
-                                                if (RPCSX.instance.settingsSet(itemPath, def.toString())) {
+                                                if (RPCSX.instance.settingsSet(
+                                                        itemPath, def.toString()
+                                                    )
+                                                ) {
                                                     itemObject.put("value", def)
                                                     itemValue = def
                                                 } else {
-                                                    AlertDialogQueue.showDialog("Setting error", "Failed to reset $key")
+                                                    AlertDialogQueue.showDialog(
+                                                        "Setting error", "Failed to reset $key"
+                                                    )
                                                 }
-                                            }
-                                        )
-                                    }
-                                )
+                                            })
+                                    })
                             }
 
                             "enum" -> {
-                                var itemValue by remember {  mutableStateOf(itemObject.getString("value"))  }
+                                var itemValue by remember { mutableStateOf(itemObject.getString("value")) }
                                 val def = itemObject.getString("default")
                                 val variantsJson = itemObject.getJSONArray("variants")
                                 val variants = ArrayList<String>()
@@ -230,10 +229,15 @@ fun AdvancedSettingsScreen(
                                     values = variants,
                                     icon = null,
                                     title = key + if (itemValue == def) "" else " *",
-                                    onValueChange = {
-                                            value ->
-                                        if (!RPCSX.instance.settingsSet(itemPath, "\"" + value + "\"")) {
-                                            AlertDialogQueue.showDialog("Setting error", "Failed to assign $itemPath value $value")
+                                    onValueChange = { value ->
+                                        if (!RPCSX.instance.settingsSet(
+                                                itemPath, "\"" + value + "\""
+                                            )
+                                        ) {
+                                            AlertDialogQueue.showDialog(
+                                                "Setting error",
+                                                "Failed to assign $itemPath value $value"
+                                            )
                                         } else {
                                             itemObject.put("value", value)
                                             itemValue = value
@@ -244,16 +248,19 @@ fun AdvancedSettingsScreen(
                                             title = "Reset Setting",
                                             message = "Do you want to reset '$key' to its default value?",
                                             onConfirm = {
-                                                if (RPCSX.instance.settingsSet(itemPath, "\"" + def + "\"")) {
+                                                if (RPCSX.instance.settingsSet(
+                                                        itemPath, "\"" + def + "\""
+                                                    )
+                                                ) {
                                                     itemObject.put("value", def)
                                                     itemValue = def
                                                 } else {
-                                                    AlertDialogQueue.showDialog("Setting error", "Failed to reset $key")
+                                                    AlertDialogQueue.showDialog(
+                                                        "Setting error", "Failed to reset $key"
+                                                    )
                                                 }
-                                            }
-                                        )
-                                    }
-                                )
+                                            })
+                                    })
                             }
 
                             "uint", "int" -> {
@@ -278,8 +285,7 @@ fun AdvancedSettingsScreen(
                                         steps = (max - min).toInt(),
                                         onValueChange = { value ->
                                             if (!RPCSX.instance.settingsSet(
-                                                    itemPath,
-                                                    value.toLong().toString()
+                                                    itemPath, value.toLong().toString()
                                                 )
                                             ) {
                                                 AlertDialogQueue.showDialog(
@@ -288,8 +294,7 @@ fun AdvancedSettingsScreen(
                                                 )
                                             } else {
                                                 itemObject.put(
-                                                    "value",
-                                                    value.toLong().toString()
+                                                    "value", value.toLong().toString()
                                                 )
                                                 itemValue = value.toLong()
                                             }
@@ -300,24 +305,37 @@ fun AdvancedSettingsScreen(
                                                 title = "Reset Setting",
                                                 message = "Do you want to reset '$key' to its default value?",
                                                 onConfirm = {
-                                                    if (RPCSX.instance.settingsSet(itemPath, def.toString())) {
+                                                    if (RPCSX.instance.settingsSet(
+                                                            itemPath, def.toString()
+                                                        )
+                                                    ) {
                                                         itemObject.put("value", def)
                                                         itemValue = def
                                                     } else {
-                                                        AlertDialogQueue.showDialog("Setting error", "Failed to reset $key")
+                                                        AlertDialogQueue.showDialog(
+                                                            "Setting error", "Failed to reset $key"
+                                                        )
                                                     }
-                                                }
-                                            )
-                                        }
-                                    )
+                                                })
+                                        })
                                 }
                             }
 
                             "float" -> {
-                                var itemValue by remember {  mutableDoubleStateOf(itemObject.getString("value").toDouble())  }
-                                val max = if (itemObject.has("max"))  itemObject.getString("max").toDouble() else 0.0
-                                val min =  if (itemObject.has("min"))  itemObject.getString("min").toDouble() else 0.0
-                                val def =  if (itemObject.has("default"))  itemObject.getString("default").toDouble() else 0.0
+                                var itemValue by remember {
+                                    mutableDoubleStateOf(
+                                        itemObject.getString(
+                                            "value"
+                                        ).toDouble()
+                                    )
+                                }
+                                val max = if (itemObject.has("max")) itemObject.getString("max")
+                                    .toDouble() else 0.0
+                                val min = if (itemObject.has("min")) itemObject.getString("min")
+                                    .toDouble() else 0.0
+                                val def =
+                                    if (itemObject.has("default")) itemObject.getString("default")
+                                        .toDouble() else 0.0
 
                                 if (min < max) {
                                     SliderPreference(
@@ -327,8 +345,7 @@ fun AdvancedSettingsScreen(
                                         steps = (max - min + 1).toInt(),
                                         onValueChange = { value ->
                                             if (!RPCSX.instance.settingsSet(
-                                                    itemPath,
-                                                    value.toString()
+                                                    itemPath, value.toString()
                                                 )
                                             ) {
                                                 AlertDialogQueue.showDialog(
@@ -346,16 +363,19 @@ fun AdvancedSettingsScreen(
                                                 title = "Reset Setting",
                                                 message = "Do you want to reset '$key' to its default value?",
                                                 onConfirm = {
-                                                    if (RPCSX.instance.settingsSet(itemPath, def.toString())) {
+                                                    if (RPCSX.instance.settingsSet(
+                                                            itemPath, def.toString()
+                                                        )
+                                                    ) {
                                                         itemObject.put("value", def)
                                                         itemValue = def
                                                     } else {
-                                                        AlertDialogQueue.showDialog("Setting error", "Failed to reset $key")
+                                                        AlertDialogQueue.showDialog(
+                                                            "Setting error", "Failed to reset $key"
+                                                        )
                                                     }
-                                                }
-                                            )
-                                        }
-                                    )
+                                                })
+                                        })
                                 }
                             }
 
@@ -382,8 +402,7 @@ fun SettingsScreen(
     Scaffold(
         modifier = Modifier
             .nestedScroll(topBarScrollBehavior.nestedScrollConnection)
-            .then(modifier),
-        topBar = {
+            .then(modifier), topBar = {
             LargeTopAppBar(
                 title = { Text(text = "Settings", fontWeight = FontWeight.Medium) },
                 scrollBehavior = topBarScrollBehavior,
@@ -393,30 +412,19 @@ fun SettingsScreen(
                     ) {
                         Icon(imageVector = Icons.AutoMirrored.Default.KeyboardArrowLeft, null)
                     }
-                }
-            )
-        }
-    ) { contentPadding ->
+                })
+        }) { contentPadding ->
         val context = LocalContext.current
-
-        var selectedFileUri by remember { mutableStateOf<Uri?>(null) }
-
-        val firmwareFilePicker = rememberLauncherForActivityResult(
-            contract = ActivityResultContracts.GetContent()
-        ) { resultUri ->
-            resultUri?.let { selectedFileUri = it }
-            Toast.makeText(context, resultUri.toString(), Toast.LENGTH_SHORT).show()
-        }
 
         LazyColumn(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(contentPadding),
-        ) {    
+        ) {
             item {
                 Spacer(modifier = Modifier.height(16.dp))
             }
-            
+
             item(
                 key = "internal_directory"
             ) {
@@ -426,17 +434,21 @@ fun SettingsScreen(
                     description = "Open internal directory of RPCSX in file manager"
                 ) {
                     if (context.launchBrowseIntent(Intent.ACTION_VIEW) or context.launchBrowseIntent()) {
-                        // No Activity found to handle action
+                        AlertDialogQueue.showDialog("View Internal Directory Error",  "No Activity found to handle this action")
                     }
                 }
             }
 
             item(key = "advanced_settings") {
-                HomePreference(title = "Advanced Settings", icon = { Icon(imageVector = Icons.Default.Settings, null) }, description = "Configure emulator advanced settings") {
+                HomePreference(
+                    title = "Advanced Settings",
+                    icon = { Icon(imageVector = Icons.Default.Settings, null) },
+                    description = "Configure emulator advanced settings"
+                ) {
                     navigateTo("settings@@$")
                 }
             }
-            
+
             item(
                 key = "custom_gpu_driver"
             ) {
@@ -465,10 +477,9 @@ fun SettingsScreen(
                     description = "Share RPCSX's log file to debug issues"
                 ) {
                     val file = DocumentFile.fromSingleUri(
-                        context,
-                        DocumentsContract.buildDocumentUri(
+                        context, DocumentsContract.buildDocumentUri(
                             AppDataDocumentProvider.AUTHORITY,
-                            "${AppDataDocumentProvider.ROOT_ID}/cache/RPCSX.log"
+                            "${AppDataDocumentProvider.ROOT_ID}/cache/RPCSX${if (RPCSX.lastPlayedGame.isEmpty()) "" else ".old"}.log"
                         )
                     )
 
@@ -503,8 +514,7 @@ private fun Context.launchBrowseIntent(
         val intent = Intent(action).apply {
             addCategory(Intent.CATEGORY_DEFAULT)
             data = DocumentsContract.buildRootUri(
-                AppDataDocumentProvider.AUTHORITY,
-                AppDataDocumentProvider.ROOT_ID
+                AppDataDocumentProvider.AUTHORITY, AppDataDocumentProvider.ROOT_ID
             )
             addFlags(Intent.FLAG_GRANT_WRITE_URI_PERMISSION or Intent.FLAG_GRANT_PREFIX_URI_PERMISSION or Intent.FLAG_GRANT_PERSISTABLE_URI_PERMISSION)
         }
