@@ -78,10 +78,10 @@ jobs:
         CMAKE_C_COMPILER_LAUNCHER: "ccache"
         CMAKE_CXX_COMPILER_LAUNCHER: "ccache"
       run: |
+        echo RX_VERSION=`git log --date=format:%Y%m%d --pretty=format:'%cd' -n 1` >> "${{ github.env }}"
+        echo RX_SHA=`git log --pretty=format:'%h' -n 1` >> "${{ github.env }}"
         ./gradlew assembleRelease
-        echo RX_VERSION=`cat app/src/main/cpp/.rx.version | awk -F'-' '{print $1}'` >> ${{ github.env }}
-        
-
+  
     - name: Build release artifacts
       uses: actions/upload-artifact@v4
       if: ${{ github.event_name != 'workflow_dispatch' }}
