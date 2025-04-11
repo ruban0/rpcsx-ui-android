@@ -102,3 +102,18 @@ jobs:
         # body_path: or/as/file.md
         files: |
           app/build/outputs/apk/release/rpcsx-release.apk
+
+    - name: Deploy build
+      uses: softprops/action-gh-release@v2
+      if: |
+        github.event_name != 'pull_request' &&
+        github.ref == 'refs/heads/master' &&
+        github.repository == 'RPCSX/rpcsx-ui-android'
+      with:
+        prerelease: false
+        make_latest: true
+        repository: RPCSX/rpcsx-ui-android-build
+        token: ${{ secrets.BUILD_TOKEN }}
+        tag_name: v${{ env.RX_VERSION }}-${{ env.RX_SHA }}
+        files: app/build/outputs/apk/release/rpcsx-release.apk
+        body: ${{ github.server_url }}/${{ github.repository }}/commit/${{ github.sha }}
