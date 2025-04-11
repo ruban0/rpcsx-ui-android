@@ -242,7 +242,7 @@ fun AppNavHost() {
         ) {
             UpdateChannelListScreen(
                 navigateBack = navController::navigateUp,
-                title = "GPU Driver Install Channel",
+                title = "GPU Driver Download Channel",
                 items = gpuDriverChannels.toList(),
                 selected = prefs.getString("gpu_driver_channel", null),
                 onSelect = { channel ->
@@ -278,7 +278,7 @@ fun AppNavHost() {
         ) {
             UpdateChannelListScreen(
                 navigateBack = navController::navigateUp,
-                title = "UI Update Channel",
+                title = "RPCSX UI Android Update Channel",
                 items = channelsToUiText(uiChannels, ReleaseUiChannel, DevUiChannel),
                 selected = channelToUiText(prefs.getString("ui_channel", ReleaseUiChannel)!!, ReleaseUiChannel, DevUiChannel),
                 onSelect = { channel ->
@@ -326,7 +326,7 @@ fun AppNavHost() {
         ) {
             UpdateChannelListScreen(
                 navigateBack = navController::navigateUp,
-                title = "RPCSX Update Channel",
+                title = "RPCSX Download Channel",
                 items = channelsToUiText(rpcsxChannels, ReleaseRpcsxChannel, DevRpcsxChannel),
                 selected = channelToUiText(prefs.getString("rpcsx_channel", ReleaseRpcsxChannel)!!, ReleaseRpcsxChannel, DevRpcsxChannel),
                 onSelect = { channel ->
@@ -547,7 +547,7 @@ fun GamesDestination(
                         onClick = {
                             AlertDialogQueue.showDialog(
                                 "RPCSX UI Android",
-                                        "UI v${BuildConfig.Version}\nRPCSX v${RPCSX.instance.getVersion()}",
+                                        "UI ${BuildConfig.Version}\nRPCSX v${RPCSX.instance.getVersion()}",
                                 confirmText = "Copy",
                             )
                         }

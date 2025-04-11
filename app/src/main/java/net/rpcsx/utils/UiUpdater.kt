@@ -16,8 +16,7 @@ import java.io.File
 
 class PackageInstallStatusReceiver : BroadcastReceiver() {
     override fun onReceive(context: Context, intent: Intent) {
-
-        when (val status = intent.getIntExtra(PackageInstaller.EXTRA_STATUS, -1)) {
+        when (intent.getIntExtra(PackageInstaller.EXTRA_STATUS, -1)) {
             PackageInstaller.STATUS_PENDING_USER_ACTION -> {
                 val activityIntent =
                     intent.getParcelableExtra<Intent>(Intent.EXTRA_INTENT)
@@ -81,8 +80,6 @@ object UiUpdater {
                     }
 
                     tmp.deleteOnExit()
-
-                    Log.w( "UiUpdate", "downloading ${releaseAsset.browser_download_url}, name ${target.name}")
 
                     when (val downloadStatus = GitHub.downloadAsset(releaseAsset.browser_download_url, tmp, progressCallback)) {
                         is GitHub.DownloadStatus.Success -> {

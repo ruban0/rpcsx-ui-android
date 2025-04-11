@@ -11,6 +11,7 @@ import androidx.lifecycle.lifecycleScope
 import kotlinx.coroutines.launch
 import net.rpcsx.ui.navigation.AppNavHost
 import net.rpcsx.utils.GitHub
+import java.io.File
 import kotlin.concurrent.thread
 
 private const val ACTION_USB_PERMISSION = "net.rpcsx.USB_PERMISSION"
@@ -60,6 +61,11 @@ class MainActivity : ComponentActivity() {
 
             thread {
                 RPCSX.instance.processCompilationQueue()
+            }
+
+            val updateFile = File(RPCSX.rootDirectory + "cache", "rpcsx-${BuildConfig.Version}.apk")
+            if (updateFile.exists()) {
+                updateFile.delete()
             }
         }
 

@@ -441,7 +441,7 @@ fun SettingsScreen(
                 HomePreference(
                     title = "Download Channels",
                     icon = { Icon(imageVector = Icons.Rounded.ArrowDropDown, null) }, // FIXME: add proper icon
-                    description = "Configure emulator advanced settings"
+                    description = ""
                 ) {
                     navigateTo("update_channels")
                 }
