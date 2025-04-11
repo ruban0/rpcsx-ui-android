@@ -10,6 +10,7 @@ import androidx.core.view.WindowCompat
 import androidx.lifecycle.lifecycleScope
 import kotlinx.coroutines.launch
 import net.rpcsx.ui.navigation.AppNavHost
+import net.rpcsx.utils.GitHub
 import kotlin.concurrent.thread
 
 private const val ACTION_USB_PERMISSION = "net.rpcsx.USB_PERMISSION"
@@ -53,6 +54,7 @@ class MainActivity : ComponentActivity() {
         }
 
         if (!RPCSX.initialized) {
+            GitHub.initialize(this)
             RPCSX.instance.initialize(RPCSX.rootDirectory)
             val nativeLibraryDir = packageManager.getApplicationInfo(packageName, 0).nativeLibraryDir
             RPCSX.instance.settingsSet("Video@@Vulkan@@Custom Driver@@Hook Directory", "\"" + nativeLibraryDir + "\"")

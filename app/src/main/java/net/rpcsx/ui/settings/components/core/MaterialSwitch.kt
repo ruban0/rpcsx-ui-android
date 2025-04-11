@@ -31,10 +31,10 @@ import androidx.compose.ui.draw.shadow
 
 @Composable
 fun MaterialSwitch(
+    modifier: Modifier = Modifier,
     checked: Boolean = true,
     enabled: Boolean = true,
     onCheckedChange: (Boolean) -> Unit,
-    modifier: Modifier = Modifier
 ) {
     val colors = SwitchDefaults.colors()
     val transition = updateTransition(targetState = checked, label = "switchTransition")

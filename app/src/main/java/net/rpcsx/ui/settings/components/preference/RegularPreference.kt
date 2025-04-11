@@ -13,14 +13,6 @@ import net.rpcsx.ui.settings.components.core.PreferenceIcon
 import net.rpcsx.ui.settings.components.core.PreferenceSubtitle
 import net.rpcsx.ui.settings.components.core.PreferenceTitle
 
-
-/**
- * Created using Android Studio
- * User: Muhammad Ashhal
- * Date: Wed, Mar 05, 2025
- * Time: 1:01 am
- */
-
 /**
  * A regular preference item.
  * This is a simple preference item with a title, subtitle, leading icon, and trailing content.
@@ -32,8 +24,8 @@ import net.rpcsx.ui.settings.components.core.PreferenceTitle
 @Composable
 fun RegularPreference(
     title: @Composable () -> Unit,
-    leadingIcon: @Composable (() -> Unit) = {},
     modifier: Modifier = Modifier,
+    leadingIcon: @Composable (() -> Unit) = {},
     subtitle: @Composable (() -> Unit)? = null,
     value: @Composable (() -> Unit)? = null,
     trailingContent: @Composable (() -> Unit)? = null,
@@ -57,8 +49,8 @@ fun RegularPreference(
 @Composable
 fun RegularPreference(
     title: String,
-    leadingIcon: ImageVector? = null,
     modifier: Modifier = Modifier,
+    leadingIcon: ImageVector? = null,
     subtitle: @Composable (() -> Unit)? = null,
     value: @Composable (() -> Unit)? = null,
     trailingContent: @Composable (() -> Unit)? = null,

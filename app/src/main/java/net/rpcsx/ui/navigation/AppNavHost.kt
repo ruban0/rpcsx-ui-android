@@ -1,11 +1,11 @@
 package net.rpcsx.ui.navigation
 
-import android.net.Uri
-import android.util.Log
-import android.content.Intent
 import android.content.ClipData
 import android.content.ClipboardManager
 import android.content.Context
+import android.content.Intent
+import android.net.Uri
+import android.util.Log
 import android.widget.Toast
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
@@ -62,6 +62,7 @@ import androidx.compose.ui.res.vectorResource
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import androidx.core.content.edit
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
@@ -73,8 +74,19 @@ import net.rpcsx.PrecompilerServiceAction
 import net.rpcsx.ProgressRepository
 import net.rpcsx.R
 import net.rpcsx.RPCSX
-import net.rpcsx.overlay.OverlayEditActivity
 import net.rpcsx.dialogs.AlertDialogQueue
+import net.rpcsx.overlay.OverlayEditActivity
+import net.rpcsx.ui.channels.DefaultGpuDriverChannel
+import net.rpcsx.ui.channels.DevRpcsxChannel
+import net.rpcsx.ui.channels.DevUiChannel
+import net.rpcsx.ui.channels.ReleaseRpcsxChannel
+import net.rpcsx.ui.channels.ReleaseUiChannel
+import net.rpcsx.ui.channels.UpdateChannelListScreen
+import net.rpcsx.ui.channels.UpdateChannelsScreen
+import net.rpcsx.ui.channels.channelToUiText
+import net.rpcsx.ui.channels.channelsToUiText
+import net.rpcsx.ui.channels.uiTextToChannel
+import net.rpcsx.ui.channels.uiTextToChannels
 import net.rpcsx.ui.drivers.GpuDriversScreen
 import net.rpcsx.ui.games.GamesScreen
 import net.rpcsx.ui.settings.AdvancedSettingsScreen
@@ -85,10 +97,56 @@ import org.json.JSONObject
 @Preview
 @Composable
 fun AppNavHost() {
+    val context = LocalContext.current
     val navController = rememberNavController()
     val drawerState = rememberDrawerState(initialValue = DrawerValue.Closed)
     val scope = rememberCoroutineScope()
     val settings = remember { mutableStateOf(JSONObject(RPCSX.instance.settingsGet(""))) }
+    val prefs = remember { context.getSharedPreferences("app_prefs", Context.MODE_PRIVATE) }
+
+    var gpuDriverChannelList =
+        prefs.getStringSet("gpu_driver_channel_list", setOf(DefaultGpuDriverChannel))?.toList()
+    if (gpuDriverChannelList == null) {
+        gpuDriverChannelList = listOf(DefaultGpuDriverChannel)
+    }
+    var gpuDriverChannels by remember { mutableStateOf(gpuDriverChannelList) }
+
+    var uiChannelList =
+        prefs.getStringSet("ui_channel_list", setOf(ReleaseUiChannel, DevUiChannel))?.toList()
+    if (uiChannelList == null) {
+        uiChannelList = listOf(ReleaseUiChannel, DevUiChannel)
+    }
+    var uiChannels by remember { mutableStateOf(uiChannelList) }
+
+    var rpcsxChannelList =
+        prefs.getStringSet("rpcsx_channel_list", setOf(ReleaseRpcsxChannel, DevRpcsxChannel))
+            ?.toList()
+    if (rpcsxChannelList == null) {
+        rpcsxChannelList = listOf(ReleaseRpcsxChannel, DevRpcsxChannel)
+    }
+    var rpcsxChannels by remember { mutableStateOf(rpcsxChannelList) }
+
+    val isValidChannel = { channel: String, releaseRepo: String, devRepo: String ->
+        channel != "Release" && channel != "Development" && channel != releaseRepo && channel != devRepo
+    }
+
+    if (prefs.getString("gpu_driver_channel", "") == "") {
+        prefs.edit {
+            putString("gpu_driver_channel", DefaultGpuDriverChannel)
+        }
+    }
+
+    if (prefs.getString("ui_channel", "") == "") {
+        prefs.edit {
+            putString("ui_channel", ReleaseUiChannel)
+        }
+    }
+
+    if (prefs.getString("rpcsx_channel", "") == "") {
+        prefs.edit {
+            putString("rpcsx_channel", ReleaseRpcsxChannel)
+        }
+    }
 
     BackHandler(enabled = drawerState.isOpen) {
         scope.launch {
@@ -132,7 +190,7 @@ fun AppNavHost() {
                 ) {
                     AdvancedSettingsScreen(
                         navigateBack = navController::navigateUp,
-                        navigateTo = { navController.navigate(it) },
+                        navigateTo = navController::navigate,
                         settings = elemObject,
                         path = elemPath
                     )
@@ -147,7 +205,7 @@ fun AppNavHost() {
         ) {
             AdvancedSettingsScreen(
                 navigateBack = navController::navigateUp,
-                navigateTo = { navController.navigate(it) },
+                navigateTo = navController::navigate,
                 settings = settings.value,
             )
         }
@@ -157,7 +215,7 @@ fun AppNavHost() {
         ) {
             SettingsScreen(
                 navigateBack = navController::navigateUp,
-                navigateTo = { navController.navigate(it) },
+                navigateTo = navController::navigate,
             )
         }
 
@@ -166,6 +224,155 @@ fun AppNavHost() {
         ) {
             GpuDriversScreen(
                 navigateBack = navController::navigateUp
+            )
+        }
+
+        composable(
+            route = "update_channels"
+        ) {
+            UpdateChannelsScreen(
+                navigateBack = navController::navigateUp,
+                navigateTo = navController::navigate,
+            )
+        }
+
+        composable(
+            route = "gpu_driver_channels"
+        ) {
+            UpdateChannelListScreen(
+                navigateBack = navController::navigateUp,
+                title = "GPU Driver Install Channel",
+                items = gpuDriverChannels.toList(),
+                selected = prefs.getString("gpu_driver_channel", null),
+                onSelect = { channel ->
+                    prefs.edit {
+                        putString("gpu_driver_channel", channel)
+                    }
+
+                    navController.navigateUp()
+                },
+                onDelete = { channel ->
+                    gpuDriverChannels = gpuDriverChannels.filter { it != channel }
+
+                    prefs.edit {
+                        putStringSet("gpu_driver_channel_list", gpuDriverChannels.toSet())
+                    }
+                },
+                onAdd = { channel ->
+                    if (gpuDriverChannels.find { it == channel } != null) {
+                        return@UpdateChannelListScreen
+                    }
+
+                    gpuDriverChannels = gpuDriverChannels + channel
+
+                    prefs.edit {
+                        putStringSet("gpu_driver_channel_list", gpuDriverChannels.toSet())
+                    }
+                },
+                isDeletable = { gpuDriverChannels.size > 1 })
+        }
+
+        composable(
+            route = "ui_channels"
+        ) {
+            UpdateChannelListScreen(
+                navigateBack = navController::navigateUp,
+                title = "UI Update Channel",
+                items = channelsToUiText(uiChannels, ReleaseUiChannel, DevUiChannel),
+                selected = channelToUiText(prefs.getString("ui_channel", ReleaseUiChannel)!!, ReleaseUiChannel, DevUiChannel),
+                onSelect = { channel ->
+                    prefs.edit {
+                        putString("ui_channel", uiTextToChannel(channel, ReleaseUiChannel, DevUiChannel))
+                    }
+
+                    navController.navigateUp()
+                },
+                onDelete = { channel ->
+                    uiChannels = uiChannels.filter { it != channel }
+
+                    prefs.edit {
+                        putStringSet(
+                            "ui_channel_list",
+                            uiTextToChannels(uiChannels, ReleaseUiChannel, DevUiChannel).toSet()
+                        )
+                    }
+                },
+                onAdd = { channel ->
+                    if (!isValidChannel(
+                            channel,
+                            ReleaseUiChannel,
+                            DevUiChannel
+                        ) || uiChannels.find { it == channel } != null
+                    ) {
+                        return@UpdateChannelListScreen
+                    }
+
+                    uiChannels += channel
+
+                    prefs.edit {
+                        putStringSet(
+                            "ui_channel_list",
+                            uiTextToChannels(uiChannels, ReleaseUiChannel, DevUiChannel).toSet()
+                        )
+                    }
+                },
+                isDeletable = { isValidChannel(it, ReleaseUiChannel, DevUiChannel) }
+            )
+        }
+
+        composable(
+            route = "rpcsx_channels"
+        ) {
+            UpdateChannelListScreen(
+                navigateBack = navController::navigateUp,
+                title = "RPCSX Update Channel",
+                items = channelsToUiText(rpcsxChannels, ReleaseRpcsxChannel, DevRpcsxChannel),
+                selected = channelToUiText(prefs.getString("rpcsx_channel", ReleaseRpcsxChannel)!!, ReleaseRpcsxChannel, DevRpcsxChannel),
+                onSelect = { channel ->
+                    prefs.edit {
+                        putString("rpcsx_channel", uiTextToChannel(channel, ReleaseRpcsxChannel, DevRpcsxChannel))
+                    }
+
+                    navController.navigateUp()
+                },
+                onDelete = { channel ->
+                    rpcsxChannels = rpcsxChannels.filter { it != channel }
+
+                    prefs.edit {
+                        putStringSet(
+                            "rpcsx_channel_list",
+                            uiTextToChannels(
+                                rpcsxChannels,
+                                ReleaseRpcsxChannel,
+                                DevRpcsxChannel
+                            ).toSet()
+                        )
+                    }
+                },
+                onAdd = { channel ->
+                    if (!isValidChannel(
+                            channel,
+                            ReleaseRpcsxChannel,
+                            DevRpcsxChannel
+                        ) || rpcsxChannels.find { it == channel } != null
+                    ) {
+                        return@UpdateChannelListScreen
+                    }
+
+                    rpcsxChannels += channel
+
+                    prefs.edit {
+                        putStringSet(
+                            "rpcsx_channel_list",
+                            uiTextToChannels(
+                                rpcsxChannels,
+                                ReleaseRpcsxChannel,
+                                DevRpcsxChannel
+                            ).toSet()
+                        )
+                    }
+                },
+                isDeletable = { isValidChannel(it, ReleaseRpcsxChannel, DevRpcsxChannel) }
             )
         }
 
@@ -286,7 +493,12 @@ fun GamesDestination(
                     NavigationDrawerItem(
                         label = { Text("Edit Overlay") },
                         selected = false,
-                        icon = { Icon(painter = painterResource(id = R.drawable.ic_show_osc), null) },
+                        icon = {
+                            Icon(
+                                painter = painterResource(id = R.drawable.ic_show_osc),
+                                null
+                            )
+                        },
                         onClick = {
                             context.startActivity(
                                 Intent(
@@ -303,15 +515,23 @@ fun GamesDestination(
                         icon = { Icon(Icons.Outlined.Info, contentDescription = null) },
                         onClick = {
                             AlertDialogQueue.showDialog(
-                                "System Info", 
-                                RPCSX.instance.systemInfo(), 
-                                confirmText = "Copy", 
-                                dismissText = "Cancel", 
-                                onConfirm = { 
-                                    val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
-                                    val clip = ClipData.newPlainText("System Info", RPCSX.instance.systemInfo())
+                                "System Info",
+                                RPCSX.instance.systemInfo(),
+                                confirmText = "Copy",
+                                dismissText = "Cancel",
+                                onConfirm = {
+                                    val clipboard =
+                                        context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
+                                    val clip = ClipData.newPlainText(
+                                        "System Info",
+                                        RPCSX.instance.systemInfo()
+                                    )
                                     clipboard.setPrimaryClip(clip)
-                                    Toast.makeText(context, "Copied to clipboard!", Toast.LENGTH_SHORT).show()
+                                    Toast.makeText(
+                                        context,
+                                        "Copied to clipboard!",
+                                        Toast.LENGTH_SHORT
+                                    ).show()
                                 }
                             )
                         }

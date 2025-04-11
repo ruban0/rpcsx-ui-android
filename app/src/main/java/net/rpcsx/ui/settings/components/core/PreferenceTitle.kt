@@ -15,13 +15,6 @@ import net.rpcsx.ui.settings.components.LocalPreferenceState
 import net.rpcsx.ui.settings.util.preferenceColor
 import net.rpcsx.ui.settings.util.preferenceSubtitleColor
 
-/**
- * Created using Android Studio
- * User: Muhammad Ashhal
- * Date: Wed, Mar 05, 2025
- * Time: 1:32 am
- */
-
 @Composable
 internal fun PreferenceTitle(
     title: String,

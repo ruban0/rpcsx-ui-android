@@ -18,14 +18,6 @@ import net.rpcsx.ui.settings.components.core.PreferenceIcon
 import net.rpcsx.ui.settings.components.core.PreferenceSubtitle
 import net.rpcsx.ui.settings.components.core.PreferenceTitle
 
-
-/**
- * Created using Android Studio
- * User: Muhammad Ashhal
- * Date: Sat, Mar 08, 2025
- * Time: 7:26 pm
- */
-
 @Composable
 fun CheckboxPreference(
     checked: Boolean,

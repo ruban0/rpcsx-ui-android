@@ -3,13 +3,6 @@ package net.rpcsx.ui.settings.util
 import androidx.compose.ui.graphics.Color
 
 /**
- * Created using Android Studio
- * User: Muhammad Ashhal
- * Date: Wed, Mar 05, 2025
- * Time: 1:34 am
- */
-
-/**
  * A low level of alpha used to represent disabled components, such as text in a disabled Button.
  */
 internal const val DisabledAlpha = 0.38f

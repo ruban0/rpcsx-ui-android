@@ -28,15 +28,6 @@ import net.rpcsx.ui.settings.components.core.PreferenceIcon
 import net.rpcsx.ui.settings.components.core.PreferenceSubtitle
 import net.rpcsx.ui.settings.components.core.PreferenceTitle
 
-
-/**
- * Created using Android Studio
- * User: Muhammad Ashhal
- * Date: Wed, Mar 05, 2025
- * Time: 1:03 am
- */
-
-
 /**
  * A composable function that creates a base layout for a preference item.
  *

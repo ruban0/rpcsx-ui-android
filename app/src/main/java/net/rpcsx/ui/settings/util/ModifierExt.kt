@@ -5,13 +5,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.Dp
 
 /**
- * Created using Android Studio
- * User: Muhammad Ashhal
- * Date: Wed, Mar 05, 2025
- * Time: 1:34 am
- */
-
-/**
  * Constrains the size of the element to be within given bounds.
  *
  * The element's size will be at least [minSize] and at most [maxSize] in both dimensions.

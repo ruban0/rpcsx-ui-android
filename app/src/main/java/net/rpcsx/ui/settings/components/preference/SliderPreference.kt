@@ -28,14 +28,6 @@ import net.rpcsx.ui.settings.components.core.PreferenceIcon
 import net.rpcsx.ui.settings.components.core.PreferenceSubtitle
 import net.rpcsx.ui.settings.components.core.PreferenceTitle
 
-
-/**
- * Created using Android Studio
- * User: Muhammad Ashhal
- * Date: Sat, Mar 08, 2025
- * Time: 10:35 pm
- */
-
 @Composable
 fun SliderPreference(
     value: Float,
