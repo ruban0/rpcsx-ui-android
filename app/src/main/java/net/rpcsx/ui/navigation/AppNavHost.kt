@@ -67,6 +67,7 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import kotlinx.coroutines.launch
+import net.rpcsx.BuildConfig
 import net.rpcsx.EmulatorState
 import net.rpcsx.FirmwareRepository
 import net.rpcsx.PrecompilerService
@@ -546,7 +547,7 @@ fun GamesDestination(
                         onClick = {
                             AlertDialogQueue.showDialog(
                                 "RPCSX UI Android",
-                                "RPCSX v${RPCSX.instance.getVersion()}",
+                                        "UI v${BuildConfig.Version}\nRPCSX v${RPCSX.instance.getVersion()}",
                                 confirmText = "Copy",
                             )
                         }

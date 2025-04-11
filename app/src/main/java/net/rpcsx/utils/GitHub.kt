@@ -7,15 +7,16 @@ import androidx.compose.runtime.remember
 import androidx.core.content.edit
 import io.ktor.client.HttpClient
 import io.ktor.client.call.body
+import io.ktor.client.plugins.HttpTimeout
 import io.ktor.client.plugins.contentnegotiation.ContentNegotiation
 import io.ktor.client.plugins.logging.LogLevel
 import io.ktor.client.plugins.logging.Logging
 import io.ktor.client.request.get
+import io.ktor.client.request.prepareGet
 import io.ktor.client.statement.HttpResponse
 import io.ktor.client.statement.bodyAsChannel
 import io.ktor.http.HttpHeaders
 import io.ktor.http.HttpStatusCode
-import io.ktor.serialization.kotlinx.json.json
 import io.ktor.utils.io.readAvailable
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -30,16 +31,19 @@ object GitHub {
     const val apiServer = "https://api.github.com/"
 
     private val httpClient = HttpClient {
-        install(ContentNegotiation) {
-            json(Json { ignoreUnknownKeys = true })
-        }
         install(Logging) {
-            level = LogLevel.BODY
+            level = LogLevel.ALL
         }
+        install(HttpTimeout) {
+            requestTimeoutMillis = 1000 * 60 * 10
+            socketTimeoutMillis = 1000 * 60 * 10
+            connectTimeoutMillis = 1000 * 5
+        }
+
+        expectSuccess = true
     }
 
     private val json = Json { ignoreUnknownKeys = true }
-
     private lateinit var prefs: SharedPreferences
 
     fun initialize(context: Context) {
@@ -52,11 +56,15 @@ object GitHub {
 
     @Serializable
     data class Release(
-        val name: String, val assets: List<Asset> = emptyList()
+        val name: String,
+        val assets: List<Asset> = emptyList()
     )
 
     @Serializable
-    data class Asset(val browser_download_url: String?)
+    data class Asset(
+        val name: String,
+        val browser_download_url: String?
+    )
 
     @Serializable
     data class CacheEntry(
@@ -116,11 +124,30 @@ object GitHub {
         return GetResult.Success(body)
     }
 
+    suspend fun fetchLatestRelease(repoUrl: String): FetchResult {
+        val repoPath = repoUrl.removePrefix(
+            server
+        )
+        val apiUrl = "${apiServer}repos/$repoPath/releases/latest"
+        return try {
+            when (val response = get(apiUrl)) {
+                is GetResult.Error -> return FetchResult.Error("Failed to fetch drivers, ${response.status}")
+                is GetResult.Success -> {
+                    Log.e("GitHub", "response: " + response.content)
+                    FetchResult.Success(json.decodeFromString<Release>(response.content))
+                }
+            }
+        } catch (e: Exception) {
+            Log.e("GitHub", "Error fetching releases: ${e.message}", e)
+            FetchResult.Error("Error fetching releases: ${e.message}")
+        }
+    }
+
     suspend fun fetchReleases(repoUrl: String): FetchResult {
         val repoPath = repoUrl.removePrefix(
             server
         )
-        val apiUrl = "https://api.github.com/repos/$repoPath/releases"
+        val apiUrl = "${apiServer}repos/$repoPath/releases"
         return try {
             when (val response = get(apiUrl)) {
                 is GetResult.Error -> return FetchResult.Error("Failed to fetch drivers, ${response.status}")
@@ -143,16 +170,22 @@ object GitHub {
     suspend fun downloadAsset(
         assetUrl: String, destinationFile: File, progressCallback: (Long, Long) -> Unit
     ): DownloadStatus {
+        Log.w("GitHub", "Downloading asset $assetUrl")
         return try {
             withContext(Dispatchers.IO) {
-                val response: HttpResponse = httpClient.get(assetUrl)
-                val contentLength = response.headers[HttpHeaders.ContentLength]?.toLong() ?: -1L
+                httpClient.prepareGet(assetUrl).execute { response ->
+                    val contentLength = response.headers[HttpHeaders.ContentLength]?.toLong() ?: -1L
+                    val written = FileOutputStream(destinationFile).use { outputStream ->
+                        writeResponseToStream(response, outputStream, contentLength, progressCallback)
+                    }
 
-                FileOutputStream(destinationFile).use { outputStream ->
-                    writeResponseToStream(response, outputStream, contentLength, progressCallback)
+                    if (written != contentLength) {
+                        DownloadStatus.Error("Connection closed")
+                    } else {
+                        DownloadStatus.Success
+                    }
                 }
             }
-            DownloadStatus.Success
         } catch (e: Exception) {
             Log.e("GitHub", "Error downloading file: ${e.message}", e)
             DownloadStatus.Error(e.message)
@@ -164,7 +197,7 @@ object GitHub {
         outputStream: OutputStream,
         contentLength: Long,
         progressCallback: (Long, Long) -> Unit
-    ) {
+    ) : Long {
         val channel = response.bodyAsChannel()
         val buffer = ByteArray(1024) // 1KB buffer size
         var totalBytesRead = 0L
@@ -182,5 +215,7 @@ object GitHub {
         withContext(Dispatchers.IO) {
             outputStream.flush()
         }
+
+        return totalBytesRead
     }
 }

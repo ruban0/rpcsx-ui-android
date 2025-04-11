@@ -11,6 +11,7 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -23,19 +24,24 @@ import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Delete
 import androidx.compose.material.icons.outlined.Lock
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Card
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
+import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.material3.pulltorefresh.PullToRefreshDefaults
 import androidx.compose.material3.pulltorefresh.rememberPullToRefreshState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
@@ -51,6 +57,8 @@ import androidx.compose.ui.res.vectorResource
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import coil3.compose.AsyncImage
+import kotlinx.coroutines.launch
+import net.rpcsx.BuildConfig
 import net.rpcsx.EmulatorState
 import net.rpcsx.FirmwareRepository
 import net.rpcsx.Game
@@ -63,11 +71,11 @@ import net.rpcsx.ProgressRepository
 import net.rpcsx.R
 import net.rpcsx.RPCSX
 import net.rpcsx.RPCSXActivity
-import net.rpcsx.utils.FileUtil
 import net.rpcsx.dialogs.AlertDialogQueue
+import net.rpcsx.utils.FileUtil
+import net.rpcsx.utils.UiUpdater
 import java.io.File
 import kotlin.concurrent.thread
-import kotlin.text.substringAfterLast
 
 private fun withAlpha(color: Color, alpha: Float): Color {
     return Color(
@@ -81,7 +89,7 @@ fun GameItem(game: Game) {
     val context = LocalContext.current
     val menuExpanded = remember { mutableStateOf(false) }
     val iconExists = remember { mutableStateOf(false) }
-    var emulatorState by remember { RPCSX.state }
+    val emulatorState by remember { RPCSX.state }
     val emulatorActiveGame by remember { RPCSX.activeGame }
 
     val installKeyLauncher =
@@ -135,14 +143,17 @@ fun GameItem(game: Game) {
                         val path = File(game.info.path)
                         if (path.exists()) {
                             path.deleteRecursively()
-                            FileUtil.deleteCache(context, game.info.path.substringAfterLast("/")) { success -> 
+                            FileUtil.deleteCache(
+                                context,
+                                game.info.path.substringAfterLast("/")
+                            ) { success ->
                                 if (!success) {
                                     AlertDialogQueue.showDialog(
                                         title = "Unexpected Error",
                                         message = "Failed to delete game cache",
                                         confirmText = "Close",
                                         dismissText = ""
-                                    ) 
+                                    )
                                 }
                                 ProgressRepository.onProgressEvent(deleteProgress, 100, 100)
                                 GameRepository.remove(game)
@@ -335,12 +346,72 @@ fun GameItem(game: Game) {
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun GamesScreen() {
+    val context = LocalContext.current
     val games = remember { GameRepository.list() }
     val isRefreshing = remember { mutableStateOf(false) }
-    val coroutineScope = rememberCoroutineScope()
     val state = rememberPullToRefreshState()
+    var uiUpdateVersion by remember { mutableStateOf<String?>(null) }
+    var uiUpdate by remember { mutableStateOf(false) }
+    var uiUpdateProgressValue by remember { mutableLongStateOf(0) }
+    var uiUpdateProgressMax by remember { mutableLongStateOf(0) }
+    val coroutineScope = rememberCoroutineScope()
 
     val gameInProgress = games.find { it.progressList.isNotEmpty() }
+
+    LaunchedEffect(Unit) {
+        uiUpdateVersion = UiUpdater.checkForUpdate(context)
+    }
+
+    if (uiUpdateVersion != null) {
+        AlertDialog(
+            onDismissRequest = { if (!uiUpdate) uiUpdateVersion = null },
+            title = { if (uiUpdate) Text("Downloading RPCSX UI Android $uiUpdateVersion") else Text("UI Update Available") },
+            text = {
+                Column(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalAlignment = Alignment.CenterHorizontally
+                ) {
+                    if (uiUpdate) {
+                        if (uiUpdateProgressMax == 0L) {
+                            LinearProgressIndicator(modifier = Modifier.fillMaxWidth())
+                        } else {
+                            LinearProgressIndicator(
+                                { uiUpdateProgressValue / uiUpdateProgressMax.toFloat() },
+                                modifier = Modifier.fillMaxWidth()
+                            )
+                        }
+                    } else {
+                        Spacer(modifier = Modifier.height(8.dp))
+                        Text("Current version: ${BuildConfig.Version}\nNew version: $uiUpdateVersion\n")
+                    }
+                }
+            },
+            confirmButton = {
+                if (!uiUpdate) {
+                    TextButton(onClick = {
+                        uiUpdate = true
+
+                        coroutineScope.launch {
+                            val file = UiUpdater.downloadUpdate(
+                                context,
+                                File("${context.getExternalFilesDir(null)!!.absolutePath}/cache/")
+                            ) { value, max ->
+                                uiUpdateProgressValue = value
+                                uiUpdateProgressMax = max
+                            }
+                            uiUpdate = false
+                            uiUpdateVersion = null
+
+                            if (file != null) {
+                                UiUpdater.installUpdate(context, file)
+                            }
+                        }
+                    }) {
+                        Text("Update")
+                    }
+                }
+            })
+    }
 
     PullToRefreshBox(
         isRefreshing = isRefreshing.value,

@@ -98,7 +98,7 @@ object AlertDialogQueue {
                         )
 
                         if (hasScrolled.value) {
-                            Divider()
+                            HorizontalDivider()
                         }
                         
                         Spacer(modifier = Modifier.height(16.dp))

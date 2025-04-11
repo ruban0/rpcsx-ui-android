@@ -21,12 +21,6 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         
         WindowCompat.setDecorFitsSystemWindows(window, false)
-        
-        setContent {
-            RPCSXTheme {
-                AppNavHost()
-            }
-        }
 
         RPCSX.rootDirectory = applicationContext.getExternalFilesDir(null).toString()
         if (!RPCSX.rootDirectory.endsWith("/")) {
@@ -66,6 +60,12 @@ class MainActivity : ComponentActivity() {
 
             thread {
                 RPCSX.instance.processCompilationQueue()
+            }
+        }
+
+        setContent {
+            RPCSXTheme {
+                AppNavHost()
             }
         }
 
