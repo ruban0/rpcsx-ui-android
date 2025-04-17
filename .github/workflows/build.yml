@@ -70,10 +70,16 @@ jobs:
     - name: Install packages
       run: yes | sdkmanager "cmake;3.31.6"
 
-    - name: Export Variables
+    - name: Export Variables (Draft)
+      if: ${{ github.event_name != 'workflow_dispatch' }}
       run: |
         echo RX_VERSION=`git log --date=format:%Y%m%d --pretty=format:'%cd' -n 1` >> "${{ github.env }}"
         echo RX_SHA=`git log --pretty=format:'%h' -n 1` >> "${{ github.env }}"
+
+    - name: Export Variables (Release)
+      if: ${{ github.event_name == 'workflow_dispatch' }}
+      run: |
+        echo RX_VERSION=`git log --date=format:%Y%m%d --pretty=format:'%cd' -n 1` >> "${{ github.env }}"
 
     - name: Build with Gradle
       env: 
