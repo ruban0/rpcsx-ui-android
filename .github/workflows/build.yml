@@ -106,7 +106,7 @@ jobs:
       if: ${{ github.event_name == 'workflow_dispatch' }} 
       with:
         prerelease: ${{ env.RX_VERSION }}
-        tag_name: v${{ env.RX_VERSION }}${{inputs.releaseTag == 'Draft' && format('-{0}', env.RX_SHA) || ''}}${{inputs.releaseTag != 'Release' && format('-{0}', inputs.releaseTag) || ''}}${{ inputs.releaseTagVersion != 0 && format('-{0}', inputs.releaseTagVersion) || ''}}
+        tag_name: v${{ env.RX_VERSION }}${{inputs.releaseTag == 'Draft' && format('-{0}', env.RX_SHA) || ''}}${{inputs.releaseTag != 'Release' && inputs.releaseTag == 'Draft' && format('-{0}', inputs.releaseTag) || ''}}${{ inputs.releaseTagVersion != 0 && format('-{0}', inputs.releaseTagVersion) || ''}}
         make_latest: true
         # body: 'Some release text body if needed'
         # body_path: or/as/file.md
