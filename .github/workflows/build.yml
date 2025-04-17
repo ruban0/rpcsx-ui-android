@@ -116,6 +116,7 @@ jobs:
       uses: softprops/action-gh-release@v2
       if: |
         github.event_name != 'pull_request' &&
+        github.event_name != 'workflow_dispatch' &&
         github.ref == 'refs/heads/master' &&
         github.repository == 'RPCSX/rpcsx-ui-android'
       with:
