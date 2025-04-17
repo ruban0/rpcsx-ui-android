@@ -466,8 +466,8 @@ fun SettingsScreen(
             item(key = "update_channels") {
                 HomePreference(
                     title = "Download Channels",
-                    icon = { Icon(imageVector = Icons.Rounded.ArrowDropDown, null) }, // FIXME: add proper icon
-                    description = ""
+                    icon = { PreferenceIcon(icon = painterResource(R.drawable.ic_cloud_download)) },
+                    description = "",
                 ) {
                     navigateTo("update_channels")
                 }
