@@ -45,6 +45,8 @@ class PadOverlayDpad(
     private val bottomBit: Int,
     private val multitouch: Boolean
 ) {
+    private val originalButtonWidth = buttonWidth
+    private val originalButtonHeight = buttonHeight
     private val drawableTop = imgTop.toDrawable(resources)
     private val drawableLeft = imgLeft.toDrawable(resources)
     private val drawableRight = imgRight.toDrawable(resources)
@@ -112,9 +114,12 @@ class PadOverlayDpad(
             centerX + newWidth / 2,
             centerY + newHeight / 2
         )
-        // FIXME: Implement proper calculation which will work for all buttons
-        buttonWidth = newWidth / 2
-        buttonHeight = newHeight / 2 - newHeight / 20
+
+        val defaultScaleWidth = defaultArea.width().toFloat() / 1024
+        val defaultScaleHeight = defaultArea.height().toFloat() / 1024
+
+        buttonWidth = (originalButtonWidth / defaultScaleWidth * scaleFactor).toInt()
+        buttonHeight = (originalButtonHeight / defaultScaleHeight * scaleFactor).toInt()
         updateBounds()
 
         GeneralSettings.setValue("${inputId}_x", area.left)
