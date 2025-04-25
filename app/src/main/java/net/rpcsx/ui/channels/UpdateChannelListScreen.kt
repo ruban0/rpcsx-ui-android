@@ -2,6 +2,7 @@ package net.rpcsx.ui.channels
 
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -83,7 +84,8 @@ fun UpdateChannelListScreen(
     onDelete: (value: String) -> Unit,
     onAdd: (value: String) -> Unit,
     onSelect: (value: String) -> Unit,
-    isDeletable: (value: String) -> Boolean = { true }
+    isDeletable: (value: String) -> Boolean = { true },
+    actions: @Composable RowScope.() -> Unit = {},
 ) {
     val snackbarHostState = remember { SnackbarHostState() }
     val topBarScrollBehavior = TopAppBarDefaults.enterAlwaysScrollBehavior()
@@ -107,7 +109,9 @@ fun UpdateChannelListScreen(
                 ) {
                     Icon(imageVector = Icons.AutoMirrored.Default.KeyboardArrowLeft, null)
                 }
-            })
+            },
+            actions = actions
+        )
     }) { paddingValues ->
         Column(
             modifier = Modifier

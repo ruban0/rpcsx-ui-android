@@ -5,7 +5,6 @@ import android.content.Intent
 import android.util.Log
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
-import net.rpcsx.BuildConfig
 import net.rpcsx.RPCSX
 import net.rpcsx.dialogs.AlertDialogQueue
 import net.rpcsx.ui.channels.DevRpcsxChannel
@@ -14,25 +13,59 @@ import kotlin.system.exitProcess
 
 
 object RpcsxUpdater {
+    fun getCurrentVersion(): String? {
+        if (RPCSX.activeLibrary.value == null) {
+            return null
+        }
+
+        return "v" + RPCSX.instance.getVersion().trim().removeSuffix(" Draft").trim() + "-" + GeneralSettings["rpcsx_installed_arch"]
+    }
+
+    fun getFileArch(file: File): String? {
+        val parts = file.name.removeSuffix(".so").split("_")
+        if (parts.size != 3) {
+            return null
+        }
+
+        return parts[1]
+    }
+    fun getFileVersion(file: File): String? {
+        val parts = file.name.removeSuffix(".so").split("_")
+        if (parts.size != 3) {
+            return null
+        }
+        val arch = parts[1]
+        val version = parts[2]
+        return "$version-$arch"
+    }
+
+    fun getArch(): String {
+        return GeneralSettings["rpcsx_arch"] as? String ?: "armv8-a"
+    }
+
+    fun setArch(arch: String) {
+        GeneralSettings["rpcsx_arch"] = arch
+    }
+
     suspend fun checkForUpdate(): String? {
         val url = DevRpcsxChannel // TODO: update once RPCSX has release with android support
 
+        val arch = getArch()
         when (val fetchResult = GitHub.fetchLatestRelease(url)) {
             is GitHub.FetchResult.Success<*> -> {
                 val release = fetchResult.content as GitHub.Release
+                val releaseVersion = "${release.name}-${arch}"
 
-                if (release.assets.find { it.name == "librpcsx-android-arm64-v8a-armv8-a.so" }?.browser_download_url == null) {
+                if (release.assets.find { it.name == "librpcsx-android-arm64-v8a-${arch}.so" }?.browser_download_url == null) {
                     return null
                 }
 
                 if (RPCSX.activeLibrary.value == null) {
-                    return release.name
+                    return releaseVersion
                 }
 
-                val currentRpcsxVersion = "v" + RPCSX.instance.getVersion().trim().removeSuffix(" Draft").trim()
-
-                if (currentRpcsxVersion != release.name && release.name != GeneralSettings["rpcsx_bad_version"]) {
-                    return release.name
+                if (getCurrentVersion() != releaseVersion && releaseVersion != GeneralSettings["rpcsx_bad_version"]) {
+                    return releaseVersion
                 }
             }
             is GitHub.FetchResult.Error -> {
@@ -45,14 +78,16 @@ object RpcsxUpdater {
 
     suspend fun downloadUpdate(destinationDir: File, progressCallback: (Long, Long) -> Unit): File? {
         val url = DevRpcsxChannel // TODO: GeneralSettings["rpcsx_channel"] as String
+        val arch = getArch()
 
         when (val fetchResult = GitHub.fetchLatestRelease(url)) {
             is GitHub.FetchResult.Success<*> -> {
                 val release = fetchResult.content as GitHub.Release
-                val releaseAsset = release.assets.find { it.name == "librpcsx-android-arm64-v8a-armv8-a.so" }
+                val releaseVersion = "${release.name}-${arch}"
+                val releaseAsset = release.assets.find { it.name == "librpcsx-android-arm64-v8a-$arch.so" }
 
-                if (release.name != BuildConfig.Version && releaseAsset?.browser_download_url != null) {
-                    val target = File(destinationDir, "librpcsx-android-armv8-a-${release.name}.so")
+                if (releaseVersion != getCurrentVersion() && releaseAsset?.browser_download_url != null) {
+                    val target = File(destinationDir, "librpcsx-android_${arch}_${release.name}.so")
 
                     if (target.exists()) {
                         return target
@@ -103,8 +138,10 @@ object RpcsxUpdater {
         }
 
         val prevLibrary = GeneralSettings["rpcsx_library"] as? String
+        val prevArch = GeneralSettings["rpcsx_installed_arch"] as? String
         GeneralSettings["rpcsx_library"] = updateFile.toString()
         GeneralSettings["rpcsx_update_status"] = null
+        GeneralSettings["rpcsx_installed_arch"] = getFileArch(updateFile)
 
         Log.e("RPCSX-UI", "registered update file ${GeneralSettings["rpcsx_library"]}")
 
@@ -113,6 +150,7 @@ object RpcsxUpdater {
         }
 
         GeneralSettings["rpcsx_prev_library"] = prevLibrary
+        GeneralSettings["rpcsx_prev_installed_arch"] = prevArch
         AlertDialogQueue.showDialog("RPCSX Update", "Restart RPCSX UI to apply change", onConfirm = {
             restart()
         })

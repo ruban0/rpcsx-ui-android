@@ -96,8 +96,10 @@ import net.rpcsx.ui.games.GamesScreen
 import net.rpcsx.ui.settings.AdvancedSettingsScreen
 import net.rpcsx.ui.settings.ControllerSettings
 import net.rpcsx.ui.settings.SettingsScreen
+import net.rpcsx.ui.settings.components.preference.SingleSelectionDialog
 import net.rpcsx.ui.user.UsersScreen
 import net.rpcsx.utils.FileUtil
+import net.rpcsx.utils.RpcsxUpdater
 import org.json.JSONObject
 
 @Preview
@@ -164,7 +166,7 @@ fun AppNavHost() {
 
     if (rpcsxLibrary == null) {
         GamesDestination(
-            navigateToSettings = {  },
+            navigateToSettings = { },
             navigateToUsers = { },
             drawerState
         )
@@ -243,7 +245,7 @@ fun AppNavHost() {
                 navigateTo = navController::navigate,
             )
         }
-        
+
         composable(
             route = "controls"
         ) {
@@ -312,10 +314,17 @@ fun AppNavHost() {
                 navigateBack = navController::navigateUp,
                 title = "RPCSX UI Android Update Channel",
                 items = channelsToUiText(uiChannels, ReleaseUiChannel, DevUiChannel),
-                selected = channelToUiText(prefs.getString("ui_channel", ReleaseUiChannel)!!, ReleaseUiChannel, DevUiChannel),
+                selected = channelToUiText(
+                    prefs.getString("ui_channel", ReleaseUiChannel)!!,
+                    ReleaseUiChannel,
+                    DevUiChannel
+                ),
                 onSelect = { channel ->
                     prefs.edit {
-                        putString("ui_channel", uiTextToChannel(channel, ReleaseUiChannel, DevUiChannel))
+                        putString(
+                            "ui_channel",
+                            uiTextToChannel(channel, ReleaseUiChannel, DevUiChannel)
+                        )
                     }
 
                     navController.navigateUp()
@@ -356,14 +365,22 @@ fun AppNavHost() {
         composable(
             route = "rpcsx_channels"
         ) {
+            var downloadArch by remember { mutableStateOf(RpcsxUpdater.getArch()) }
             UpdateChannelListScreen(
                 navigateBack = navController::navigateUp,
                 title = "RPCSX Download Channel",
                 items = channelsToUiText(rpcsxChannels, ReleaseRpcsxChannel, DevRpcsxChannel),
-                selected = channelToUiText(prefs.getString("rpcsx_channel", ReleaseRpcsxChannel)!!, ReleaseRpcsxChannel, DevRpcsxChannel),
+                selected = channelToUiText(
+                    prefs.getString("rpcsx_channel", ReleaseRpcsxChannel)!!,
+                    ReleaseRpcsxChannel,
+                    DevRpcsxChannel
+                ),
                 onSelect = { channel ->
                     prefs.edit {
-                        putString("rpcsx_channel", uiTextToChannel(channel, ReleaseRpcsxChannel, DevRpcsxChannel))
+                        putString(
+                            "rpcsx_channel",
+                            uiTextToChannel(channel, ReleaseRpcsxChannel, DevRpcsxChannel)
+                        )
                     }
 
                     navController.navigateUp()
@@ -405,7 +422,19 @@ fun AppNavHost() {
                         )
                     }
                 },
-                isDeletable = { isValidChannel(it, ReleaseRpcsxChannel, DevRpcsxChannel) }
+                isDeletable = { isValidChannel(it, ReleaseRpcsxChannel, DevRpcsxChannel) },
+                actions = {
+                    SingleSelectionDialog(
+                        currentValue = downloadArch,
+                        values = listOf("armv8-a", "armv8.1-a", "armv8.2-a", "armv8.4-a", "armv8.5-a", "armv9-a", "armv9.1-a"),
+                        title = "",
+                        icon = null,
+                        onValueChange = { value ->
+                            RpcsxUpdater.setArch(value)
+                            downloadArch = value
+                        }
+                    )
+                }
             )
         }
 
@@ -603,7 +632,7 @@ fun GamesDestination(
                         onClick = {
                             AlertDialogQueue.showDialog(
                                 "RPCSX UI Android",
-                                        "UI ${BuildConfig.Version}\nRPCSX v${RPCSX.instance.getVersion()}",
+                                "UI ${BuildConfig.Version}\nRPCSX ${RpcsxUpdater.getCurrentVersion()}",
                                 confirmText = "Copy",
                             )
                         }

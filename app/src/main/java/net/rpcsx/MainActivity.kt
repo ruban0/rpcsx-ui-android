@@ -13,6 +13,7 @@ import net.rpcsx.dialogs.AlertDialogQueue
 import net.rpcsx.ui.navigation.AppNavHost
 import net.rpcsx.utils.GeneralSettings
 import net.rpcsx.utils.GitHub
+import net.rpcsx.utils.RpcsxUpdater
 import java.io.File
 import kotlin.concurrent.thread
 
@@ -60,8 +61,10 @@ class MainActivity : ComponentActivity() {
             if (rpcsxLibrary != null) {
                 if (rpcsxUpdateStatus == false && rpcsxPrevLibrary != null) {
                     GeneralSettings["rpcsx_library"] = rpcsxPrevLibrary
+                    GeneralSettings["rpcsx_installed_arch"] = GeneralSettings["rpcsx_prev_installed_arch"]
+                    GeneralSettings["rpcsx_prev_installed_arch"] = null
                     GeneralSettings["rpcsx_prev_library"] = null
-                    GeneralSettings["rpcsx_bad_version"] = File(rpcsxLibrary).name.removePrefix("librpcsx-android-armv8-a-").removeSuffix(".so")
+                    GeneralSettings["rpcsx_bad_version"] = RpcsxUpdater.getFileVersion(File(rpcsxLibrary))
 
                     File(rpcsxLibrary).delete()
                     rpcsxLibrary = rpcsxPrevLibrary
@@ -102,6 +105,7 @@ class MainActivity : ComponentActivity() {
                 if (rpcsxPrevLibrary != null) {
                     File(rpcsxPrevLibrary).delete()
                     GeneralSettings["rpcsx_prev_library"] = null
+                    GeneralSettings["rpcsx_prev_installed_arch"] = null
                 }
             }
 

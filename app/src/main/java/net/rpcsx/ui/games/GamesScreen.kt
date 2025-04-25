@@ -480,7 +480,7 @@ fun GamesScreen() {
                         }
                     } else {
                         Spacer(modifier = Modifier.height(8.dp))
-                        Text("Current version: ${if (rpcsxLibrary != null) "v" + RPCSX.instance.getVersion() else "None"}\nNew version: $rpcsxUpdateVersion\n")
+                        Text("Current version: ${if (rpcsxLibrary != null) RpcsxUpdater.getCurrentVersion() else "None"}\nNew version: $rpcsxUpdateVersion\n")
                     }
                 }
             },
