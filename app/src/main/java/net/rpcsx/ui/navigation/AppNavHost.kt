@@ -94,8 +94,8 @@ import net.rpcsx.ui.channels.uiTextToChannels
 import net.rpcsx.ui.drivers.GpuDriversScreen
 import net.rpcsx.ui.games.GamesScreen
 import net.rpcsx.ui.settings.AdvancedSettingsScreen
-import net.rpcsx.ui.settings.SettingsScreen
 import net.rpcsx.ui.settings.ControllerSettings
+import net.rpcsx.ui.settings.SettingsScreen
 import net.rpcsx.ui.user.UsersScreen
 import net.rpcsx.utils.FileUtil
 import org.json.JSONObject
@@ -107,8 +107,8 @@ fun AppNavHost() {
     val navController = rememberNavController()
     val drawerState = rememberDrawerState(initialValue = DrawerValue.Closed)
     val scope = rememberCoroutineScope()
-    val settings = remember { mutableStateOf(JSONObject(RPCSX.instance.settingsGet(""))) }
     val prefs = remember { context.getSharedPreferences("app_prefs", Context.MODE_PRIVATE) }
+    val rpcsxLibrary by remember { RPCSX.activeLibrary }
 
     var gpuDriverChannelList =
         prefs.getStringSet("gpu_driver_channel_list", setOf(DefaultGpuDriverChannel))?.toList()
@@ -161,6 +161,18 @@ fun AppNavHost() {
     }
 
     AlertDialogQueue.AlertDialog()
+
+    if (rpcsxLibrary == null) {
+        GamesDestination(
+            navigateToSettings = {  },
+            navigateToUsers = { },
+            drawerState
+        )
+
+        return
+    }
+
+    val settings = remember { mutableStateOf(JSONObject(RPCSX.instance.settingsGet(""))) }
 
     NavHost(
         navController = navController,
@@ -414,6 +426,12 @@ fun GamesDestination(
     var emulatorState by remember { RPCSX.state }
     val emulatorActiveGame by remember { RPCSX.activeGame }
     val activeUser by remember { UserRepository.activeUser }
+    val rpcsxLibrary by remember { RPCSX.activeLibrary }
+
+    if (rpcsxLibrary == null) {
+        GamesScreen()
+        return
+    }
 
     LaunchedEffect(Unit) {
         UserRepository.load()

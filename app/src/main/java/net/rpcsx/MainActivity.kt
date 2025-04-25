@@ -4,71 +4,105 @@ import android.app.Notification
 import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.os.Bundle
-import android.view.KeyEvent
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.core.view.WindowCompat
 import androidx.lifecycle.lifecycleScope
 import kotlinx.coroutines.launch
+import net.rpcsx.dialogs.AlertDialogQueue
 import net.rpcsx.ui.navigation.AppNavHost
+import net.rpcsx.utils.GeneralSettings
 import net.rpcsx.utils.GitHub
 import java.io.File
-import net.rpcsx.utils.InputBindingPrefs
-import net.rpcsx.utils.GeneralSettings
 import kotlin.concurrent.thread
-
-private const val ACTION_USB_PERMISSION = "net.rpcsx.USB_PERMISSION"
 
 class MainActivity : ComponentActivity() {
     private lateinit var unregisterUsbEventListener: () -> Unit
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        
-        WindowCompat.setDecorFitsSystemWindows(window, false)
 
         GeneralSettings.init(this)
 
-        RPCSX.rootDirectory = applicationContext.getExternalFilesDir(null).toString()
-        if (!RPCSX.rootDirectory.endsWith("/")) {
-            RPCSX.rootDirectory += "/"
-        }
+        WindowCompat.setDecorFitsSystemWindows(window, false)
 
         if (!RPCSX.initialized) {
+            Permission.PostNotifications.requestPermission(this)
+
+            with(getSystemService(NOTIFICATION_SERVICE) as NotificationManager) {
+                val channel = NotificationChannel(
+                    "rpcsx-progress",
+                    "Installation progress",
+                    NotificationManager.IMPORTANCE_DEFAULT
+                ).apply {
+                    setShowBadge(false)
+                    lockscreenVisibility = Notification.VISIBILITY_PUBLIC
+                }
+
+                createNotificationChannel(channel)
+            }
+
+            RPCSX.rootDirectory = applicationContext.getExternalFilesDir(null).toString()
+            if (!RPCSX.rootDirectory.endsWith("/")) {
+                RPCSX.rootDirectory += "/"
+            }
+
             lifecycleScope.launch {
                 GameRepository.load()
-                UserRepository.load()
             }
+
             FirmwareRepository.load()
-        }
-
-        Permission.PostNotifications.requestPermission(this)
-
-        with(getSystemService(NOTIFICATION_SERVICE) as NotificationManager) {
-            val channel = NotificationChannel(
-                "rpcsx-progress",
-                "Installation progress",
-                NotificationManager.IMPORTANCE_DEFAULT
-            ).apply {
-                setShowBadge(false)
-                lockscreenVisibility = Notification.VISIBILITY_PUBLIC
-            }
-
-            createNotificationChannel(channel)
-        }
-
-        if (!RPCSX.initialized) {
             GitHub.initialize(this)
-            RPCSX.instance.initialize(RPCSX.rootDirectory, UserRepository.getUserFromSettings())
-            val nativeLibraryDir = packageManager.getApplicationInfo(packageName, 0).nativeLibraryDir
-            RPCSX.instance.settingsSet("Video@@Vulkan@@Custom Driver@@Hook Directory", "\"" + nativeLibraryDir + "\"")
-            RPCSX.initialized = true
 
-            thread {
-                RPCSX.instance.startMainThreadProcessor()
+            var rpcsxLibrary = GeneralSettings["rpcsx_library"] as? String
+            val rpcsxUpdateStatus = GeneralSettings["rpcsx_update_status"]
+            val rpcsxPrevLibrary = GeneralSettings["rpcsx_prev_library"] as? String
+
+            if (rpcsxLibrary != null) {
+                if (rpcsxUpdateStatus == false && rpcsxPrevLibrary != null) {
+                    GeneralSettings["rpcsx_library"] = rpcsxPrevLibrary
+                    GeneralSettings["rpcsx_prev_library"] = null
+                    GeneralSettings["rpcsx_bad_version"] = File(rpcsxLibrary).name.removePrefix("librpcsx-android-armv8-a-").removeSuffix(".so")
+
+                    File(rpcsxLibrary).delete()
+                    rpcsxLibrary = rpcsxPrevLibrary
+
+                    AlertDialogQueue.showDialog("RPCSX Update Failed", "Failed to load new version, previous version was restored")
+                } else if (rpcsxUpdateStatus == null) {
+                    GeneralSettings["rpcsx_update_status"] = false
+                }
+
+                RPCSX.openLibrary(rpcsxLibrary)
             }
 
-            thread {
-                RPCSX.instance.processCompilationQueue()
+            val nativeLibraryDir =
+                packageManager.getApplicationInfo(packageName, 0).nativeLibraryDir
+            RPCSX.nativeLibDirectory = nativeLibraryDir
+
+            if (RPCSX.activeLibrary.value != null) {
+                lifecycleScope.launch {
+                    UserRepository.load()
+                }
+
+                RPCSX.instance.initialize(RPCSX.rootDirectory, UserRepository.getUserFromSettings())
+                RPCSX.instance.settingsSet(
+                    "Video@@Vulkan@@Custom Driver@@Hook Directory",
+                    "\"" + nativeLibraryDir + "\""
+                )
+                RPCSX.initialized = true
+
+                thread {
+                    RPCSX.instance.startMainThreadProcessor()
+                }
+
+                thread {
+                    RPCSX.instance.processCompilationQueue()
+                }
+
+                GeneralSettings["rpcsx_update_status"] = true
+                if (rpcsxPrevLibrary != null) {
+                    File(rpcsxPrevLibrary).delete()
+                    GeneralSettings["rpcsx_prev_library"] = null
+                }
             }
 
             val updateFile = File(RPCSX.rootDirectory + "cache", "rpcsx-${BuildConfig.Version}.apk")
@@ -83,7 +117,11 @@ class MainActivity : ComponentActivity() {
             }
         }
 
-        unregisterUsbEventListener = listenUsbEvents(this)
+        if (RPCSX.activeLibrary.value != null) {
+            unregisterUsbEventListener = listenUsbEvents(this)
+        } else {
+            unregisterUsbEventListener = {}
+        }
     }
 
     override fun onDestroy() {

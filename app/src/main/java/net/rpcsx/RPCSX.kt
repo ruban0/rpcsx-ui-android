@@ -70,6 +70,8 @@ enum class BootResult
 };
 
 class RPCSX {
+    external fun openLibrary(path: String): Boolean
+    external fun getLibraryVersion(path: String): String?
     external fun initialize(rootDir: String, user: String): Boolean
     external fun installFw(fd: Int, progressId: Long): Boolean
     external fun install(fd: Int, progressId: Long): Boolean
@@ -95,16 +97,17 @@ class RPCSX {
     external fun isInstallableFile(fd: Int) : Boolean
     external fun getDirInstallPath(sfoFd: Int) : String?
     external fun getVersion(): String
-//    external fun forceMaxGpuClocks(enable : Boolean)
 
 
     companion object {
         var initialized = false
         val instance = RPCSX()
         var rootDirectory = ""
+        var nativeLibDirectory = ""
         var lastPlayedGame = ""
         var activeGame = mutableStateOf<String?>(null)
         var state = mutableStateOf(EmulatorState.Stopped)
+        var activeLibrary = mutableStateOf<String?>(null)
 
         fun boot(path: String): BootResult {
             return BootResult.fromInt(instance.boot(path))
@@ -124,6 +127,15 @@ class RPCSX {
 
         fun getHdd0Dir(): String {
             return rootDirectory + "config/dev_hdd0/"
+        }
+
+        fun openLibrary(path: String): Boolean {
+            if (!instance.openLibrary(path)) {
+                return false
+            }
+
+            activeLibrary.value = path
+            return true
         }
 
         init {

@@ -3,9 +3,6 @@ package net.rpcsx.utils
 
 import android.content.Context
 import android.content.SharedPreferences
-import androidx.annotation.MainThread
-import kotlin.properties.ReadOnlyProperty
-import kotlin.reflect.KProperty
 
 object GeneralSettings {
 
@@ -37,5 +34,13 @@ object GeneralSettings {
             }
             apply()
         }
+    }
+
+    operator fun set(key: String, value: Any?) {
+        setValue(key, value)
+    }
+
+    fun sync() {
+        prefs.edit().commit()
     }
 }

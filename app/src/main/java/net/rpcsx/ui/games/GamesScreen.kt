@@ -73,6 +73,7 @@ import net.rpcsx.RPCSX
 import net.rpcsx.RPCSXActivity
 import net.rpcsx.dialogs.AlertDialogQueue
 import net.rpcsx.utils.FileUtil
+import net.rpcsx.utils.RpcsxUpdater
 import net.rpcsx.utils.UiUpdater
 import java.io.File
 import kotlin.concurrent.thread
@@ -355,17 +356,28 @@ fun GamesScreen() {
     var uiUpdateProgressValue by remember { mutableLongStateOf(0) }
     var uiUpdateProgressMax by remember { mutableLongStateOf(0) }
     val coroutineScope = rememberCoroutineScope()
+    val rpcsxLibrary by remember { RPCSX.activeLibrary }
+    var rpcsxUpdateVersion by remember { mutableStateOf<String?>(null) }
+    var rpcsxUpdate by remember { mutableStateOf(false) }
+    var rpcsxUpdateProgressValue by remember { mutableLongStateOf(0) }
+    var rpcsxUpdateProgressMax by remember { mutableLongStateOf(0) }
+    val activeDialogs = remember { AlertDialogQueue.dialogs }
 
     val gameInProgress = games.find { it.progressList.isNotEmpty() }
 
     LaunchedEffect(Unit) {
         uiUpdateVersion = UiUpdater.checkForUpdate(context)
+        rpcsxUpdateVersion = RpcsxUpdater.checkForUpdate()
     }
 
-    if (uiUpdateVersion != null) {
+    if (uiUpdateVersion != null && rpcsxUpdateVersion == null && activeDialogs.isEmpty()) {
         AlertDialog(
             onDismissRequest = { if (!uiUpdate) uiUpdateVersion = null },
-            title = { if (uiUpdate) Text("Downloading RPCSX UI Android $uiUpdateVersion") else Text("UI Update Available") },
+            title = {
+                if (uiUpdate) Text("Downloading RPCSX UI Android $uiUpdateVersion") else Text(
+                    "UI Update Available"
+                )
+            },
             text = {
                 Column(
                     modifier = Modifier.fillMaxWidth(),
@@ -411,6 +423,80 @@ fun GamesScreen() {
                     }
                 }
             })
+    }
+
+    if (rpcsxLibrary == null && rpcsxUpdateVersion == null && !rpcsxUpdate && activeDialogs.isEmpty()) {
+        AlertDialog(
+            onDismissRequest = { },
+            title = { Text("RPCSX library is missed") },
+            text = { Text("Downloading latest RPCSX") },
+            confirmButton = {}
+        )
+    }
+
+    if (rpcsxUpdateVersion != null && activeDialogs.isEmpty()) {
+        val startUpdate = {
+            rpcsxUpdate = true
+
+            coroutineScope.launch {
+                val file = RpcsxUpdater.downloadUpdate(
+                    File(context.filesDir.canonicalPath)
+                ) { value, max ->
+                    rpcsxUpdateProgressValue = value
+                    rpcsxUpdateProgressMax = max
+                }
+
+                if (file != null) {
+                    RpcsxUpdater.installUpdate(context, file)
+                }
+
+                rpcsxUpdate = false
+                rpcsxUpdateVersion = null
+            }
+        }
+
+        if (rpcsxLibrary == null) {
+            startUpdate()
+        }
+
+        AlertDialog(
+            onDismissRequest = {
+                if (!rpcsxUpdate && rpcsxLibrary != null) rpcsxUpdateVersion = null
+            },
+            title = { if (rpcsxUpdate) Text("Downloading RPCSX $rpcsxUpdateVersion") else Text("RPCSX Update Available") },
+            text = {
+                Column(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalAlignment = Alignment.CenterHorizontally
+                ) {
+                    if (rpcsxUpdate) {
+                        if (rpcsxUpdateProgressMax == 0L) {
+                            LinearProgressIndicator(modifier = Modifier.fillMaxWidth())
+                        } else {
+                            LinearProgressIndicator(
+                                { rpcsxUpdateProgressValue / rpcsxUpdateProgressMax.toFloat() },
+                                modifier = Modifier.fillMaxWidth()
+                            )
+                        }
+                    } else {
+                        Spacer(modifier = Modifier.height(8.dp))
+                        Text("Current version: ${if (rpcsxLibrary != null) "v" + RPCSX.instance.getVersion() else "None"}\nNew version: $rpcsxUpdateVersion\n")
+                    }
+                }
+            },
+            confirmButton = {
+                if (!rpcsxUpdate) {
+                    TextButton(onClick = {
+                        startUpdate()
+                    }) {
+                        Text("Update")
+                    }
+                }
+            })
+    }
+
+    if (rpcsxLibrary == null) {
+        return
     }
 
     PullToRefreshBox(
