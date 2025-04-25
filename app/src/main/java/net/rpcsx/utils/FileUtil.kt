@@ -1,8 +1,8 @@
 package net.rpcsx.utils
 
 import android.content.ActivityNotFoundException
-import android.content.Intent
 import android.content.Context
+import android.content.Intent
 import android.content.SharedPreferences
 import android.content.res.AssetFileDescriptor
 import android.database.Cursor
@@ -10,13 +10,17 @@ import android.net.Uri
 import android.provider.DocumentsContract
 import android.util.Log
 import androidx.core.content.edit
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import net.rpcsx.GameInfo
 import net.rpcsx.GameRepository
 import net.rpcsx.PrecompilerService
 import net.rpcsx.PrecompilerServiceAction
 import net.rpcsx.ProgressRepository
-import net.rpcsx.provider.AppDataDocumentProvider
 import net.rpcsx.RPCSX
+import net.rpcsx.provider.AppDataDocumentProvider
 import java.io.BufferedInputStream
 import java.io.BufferedOutputStream
 import java.io.File
@@ -24,10 +28,6 @@ import java.io.FileInputStream
 import java.io.FileOutputStream
 import java.io.IOException
 import kotlin.concurrent.thread
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.launch
-import kotlinx.coroutines.withContext
 
 private data class InstallableFolder(
     val uri: Uri, val targetPath: String
@@ -128,7 +128,7 @@ object FileUtil {
         }
     }
 
-    private fun saveFile(context: Context, source: Uri, target: String) {
+    fun saveFile(context: Context, source: Uri, target: String) {
         var bis: BufferedInputStream? = null
         var bos: BufferedOutputStream? = null
 
